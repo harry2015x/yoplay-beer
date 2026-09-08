@@ -54,8 +54,18 @@ export default function MesasModule({ estado }: Props) {
 
   async function confirmarCierre() {
     if (!mesaAConfirmar) return;
+  
     const exito = await cerrarMesa(mesaAConfirmar.id);
-    if (exito) setMesaAConfirmar(null);
+  
+    if (exito) {
+      setMesaAConfirmar(null);
+      cerrarModal();
+    }
+  }
+
+  function solicitarCierre(mesa: Mesa) {
+    setMesaAConfirmar(mesa);
+    cerrarModal();
   }
 
   return (
@@ -243,18 +253,25 @@ export default function MesasModule({ estado }: Props) {
         />
       )}
 
-      {mesaAConfirmar && (
-        <ConfirmModal
-          titulo={`Cerrar cuenta — Mesa ${mesaAConfirmar.numero}`}
-          mensaje={`Productos: ${mesaAConfirmar.productos.length}\nTotal: ${formatoCOP(
-            mesaAConfirmar.total
-          )}\n\n¿Deseas confirmar el pago y cerrar esta mesa?`}
-          etiquetaConfirmar="Confirmar pago"
-          peligroso
-          onConfirmar={confirmarCierre}
-          onCancelar={() => setMesaAConfirmar(null)}
-        />
-      )}
+<ConfirmModal
+  abierto={mesaAConfirmar !== null}
+  titulo={
+    mesaAConfirmar
+      ? `Cerrar cuenta — Mesa ${mesaAConfirmar.numero}`
+      : ""
+  }
+  mensaje={
+    mesaAConfirmar
+      ? `Productos: ${mesaAConfirmar.productos.length}\nTotal: ${formatoCOP(
+          mesaAConfirmar.total
+        )}\n\n¿Deseas confirmar el pago y cerrar esta mesa?`
+      : ""
+  }
+  etiquetaConfirmar="Confirmar pago"
+  peligroso
+  onConfirmar={confirmarCierre}
+  onCancelar={() => setMesaAConfirmar(null)}
+/>
 
       {notificacion && <Notificacion notificacion={notificacion} onCerrar={cerrarNotificacion} />}
     </div>

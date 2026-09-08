@@ -1,6 +1,7 @@
 ﻿"use client";
 
 type Props = {
+  abierto: boolean;
   titulo: string;
   mensaje: string;
   etiquetaConfirmar?: string;
@@ -11,6 +12,7 @@ type Props = {
 };
 
 export default function ConfirmModal({
+  abierto,
   titulo,
   mensaje,
   etiquetaConfirmar = "Confirmar",
@@ -19,6 +21,9 @@ export default function ConfirmModal({
   onConfirmar,
   onCancelar,
 }: Props) {
+
+  if (!abierto) return null;
+
   return (
     <div
       role="presentation"
@@ -30,7 +35,7 @@ export default function ConfirmModal({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 60,
+        zIndex: 100,
         padding: "20px",
       }}
     >
@@ -46,15 +51,37 @@ export default function ConfirmModal({
           padding: "26px",
           maxWidth: "380px",
           width: "100%",
-          boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+          boxShadow: "0 20px 40px rgba(0,0,0,0.25)",
         }}
       >
-        <h3 id="confirm-modal-title" style={{ margin: "0 0 10px" }}>
+        <h3
+          id="confirm-modal-title"
+          style={{
+            margin: "0 0 10px",
+            color: "#111827",
+          }}
+        >
           {titulo}
         </h3>
-        <p style={{ margin: "0 0 22px", color: "#4b5563", whiteSpace: "pre-line" }}>{mensaje}</p>
 
-        <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+        <p
+          style={{
+            margin: "0 0 22px",
+            color: "#4b5563",
+            whiteSpace: "pre-line",
+            lineHeight: 1.5,
+          }}
+        >
+          {mensaje}
+        </p>
+
+        <div
+          style={{
+            display: "flex",
+            gap: "10px",
+            justifyContent: "flex-end",
+          }}
+        >
           <button
             onClick={onCancelar}
             className="mesa-btn"
@@ -70,6 +97,7 @@ export default function ConfirmModal({
           >
             {etiquetaCancelar}
           </button>
+
           <button
             onClick={onConfirmar}
             autoFocus
@@ -78,7 +106,7 @@ export default function ConfirmModal({
               padding: "10px 16px",
               borderRadius: "8px",
               border: "none",
-              background: peligroso ? "#ef4444" : "#2563eb",
+              background: peligroso ? "#dc2626" : "#2563eb",
               color: "white",
               cursor: "pointer",
               fontWeight: 700,
@@ -91,7 +119,3 @@ export default function ConfirmModal({
     </div>
   );
 }
-
-
-
-
