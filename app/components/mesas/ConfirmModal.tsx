@@ -22,6 +22,8 @@ export default function ConfirmModal({
   onCancelar,
 }: Props) {
 
+  // IMPORTANTE:
+  // Si el modal no está abierto, no renderizamos absolutamente nada.
   if (!abierto) return null;
 
   return (
@@ -35,7 +37,7 @@ export default function ConfirmModal({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 100,
+        zIndex: 9999,
         padding: "20px",
       }}
     >
@@ -51,7 +53,7 @@ export default function ConfirmModal({
           padding: "26px",
           maxWidth: "380px",
           width: "100%",
-          boxShadow: "0 20px 40px rgba(0,0,0,0.25)",
+          boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
         }}
       >
         <h3
@@ -106,7 +108,7 @@ export default function ConfirmModal({
               padding: "10px 16px",
               borderRadius: "8px",
               border: "none",
-              background: peligroso ? "#dc2626" : "#2563eb",
+              background: peligroso ? "#ef4444" : "#2563eb",
               color: "white",
               cursor: "pointer",
               fontWeight: 700,
