@@ -257,41 +257,64 @@ export default function Home() {
     );
   };
 
-  const cerrarMesa = (id: number) => {
+  const cerrarMesa = async (id: number) => {
     const mesa = mesas.find(
       (mesa) => mesa.id === id
     );
-
+  
     if (!mesa) return;
-
+  
     if (mesa.total === 0) {
       alert(
         "No puedes cerrar una mesa sin productos."
       );
-
+  
       return;
     }
-
+  
     const confirmar = window.confirm(
       `¿Deseas cerrar la cuenta de la Mesa ${id}?\n\nTotal: $${mesa.total.toLocaleString(
         "es-CO"
       )}`
     );
-
+  
     if (!confirmar) return;
-
+  
+    const { data: ventaCreada, error } =
+      await supabase
+        .from("ventas")
+        .insert([
+          {
+            mesa_id: id,
+            total: mesa.total,
+            estado: "cerrada",
+          },
+        ])
+        .select()
+        .single();
+  
+    if (error) {
+      console.error(error);
+  
+      alert(
+        "Error al guardar la venta en Supabase."
+      );
+  
+      return;
+    }
+  
     const nuevaVenta: Venta = {
-      id: Date.now(),
+      id: ventaCreada.id,
       mesa: id,
       total: mesa.total,
       fecha: new Date(),
     };
-
+  
     setVentas([
       ...ventas,
       nuevaVenta,
     ]);
-
+  
     setMesas(
       mesas.map((mesa) =>
         mesa.id === id
@@ -304,16 +327,15 @@ export default function Home() {
           : mesa
       )
     );
-
+  
     setMesaSeleccionada(null);
-
+  
     alert(
       `Venta registrada correctamente.\n\nTotal: $${mesa.total.toLocaleString(
         "es-CO"
       )}`
     );
   };
-
   const mesaActual = mesas.find(
     (mesa) =>
       mesa.id === mesaSeleccionada
