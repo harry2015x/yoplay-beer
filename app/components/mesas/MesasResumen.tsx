@@ -9,10 +9,10 @@ type Props = {
 
 export default function MesasResumen({ total, libres, ocupadas, ventasActivas }: Props) {
   const indicadores = [
-    { etiqueta: "Total mesas", valor: total, color: "#172131", icono: "ðŸª‘" },
-    { etiqueta: "Mesas libres", valor: libres, color: "#16a34a", icono: "âœ…" },
-    { etiqueta: "Mesas ocupadas", valor: ocupadas, color: "#f59e0b", icono: "ðŸ•’" },
-    { etiqueta: "Ventas activas", valor: ventasActivas, color: "#2563eb", icono: "ðŸ’³" },
+    { etiqueta: "Total mesas", valor: total, color: "#172131", icono: "🪑" },
+    { etiqueta: "Mesas libres", valor: libres, color: "#16a34a", icono: "✅" },
+    { etiqueta: "Mesas ocupadas", valor: ocupadas, color: "#f59e0b", icono: "🕒" },
+    { etiqueta: "Ventas activas", valor: ventasActivas, color: "#2563eb", icono: "💳" },
   ];
 
   return (

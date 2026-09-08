@@ -15,7 +15,7 @@ function tiempoAbierta(desde: Date | null): string | null {
 
   const minutos = Math.max(0, Math.floor((Date.now() - desde.getTime()) / 60000));
 
-  if (minutos < 1) return "ReciÃ©n abierta";
+  if (minutos < 1) return "Recién abierta";
   if (minutos < 60) return `${minutos} min abierta`;
 
   const horas = Math.floor(minutos / 60);
@@ -54,7 +54,7 @@ export default function MesaCard({ mesa, onAbrir, onGestionar, onSolicitarCierre
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <span style={{ fontSize: "30px" }} aria-hidden="true">
-            ðŸª‘
+            🪑
           </span>
           <h3 style={{ margin: 0, fontSize: "18px" }}>Mesa {mesa.numero}</h3>
         </div>

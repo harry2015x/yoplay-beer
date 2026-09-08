@@ -66,7 +66,7 @@ export default function MesaModal({
         >
           <div>
             <h2 id="mesa-modal-title" style={{ margin: 0 }}>
-              ðŸª‘ Mesa {mesa.numero}
+              🪑 Mesa {mesa.numero}
             </h2>
             <span
               style={{
@@ -96,7 +96,7 @@ export default function MesaModal({
               fontSize: "18px",
             }}
           >
-            Ã—
+            ×
           </button>
         </div>
 
@@ -110,7 +110,7 @@ export default function MesaModal({
           }}
         >
           <div>
-            <h3 style={{ marginTop: 0 }}>ðŸº Productos</h3>
+            <h3 style={{ marginTop: 0 }}>🍺 Productos</h3>
             {PRODUCTOS.map((producto) => (
               <div
                 key={producto.id}

@@ -60,7 +60,7 @@ export default function MesasModule({ estado }: Props) {
 
   return (
     <div>
-      {/* Estilos globales del mÃ³dulo Mesas (hover, animaciones, foco visible). */}
+      {/* Estilos globales del módulo Mesas (hover, animaciones, foco visible). */}
       <style>{`
         .mesa-card {
           transition: transform 160ms ease, box-shadow 160ms ease;
@@ -114,8 +114,8 @@ export default function MesasModule({ estado }: Props) {
       `}</style>
 
       <div style={{ marginBottom: "18px" }}>
-        <h2 style={{ margin: 0 }}>ðŸª‘ Mesas</h2>
-        <p style={{ margin: "4px 0 0", color: "#6b7280" }}>GestiÃ³n y control de mesas</p>
+        <h2 style={{ margin: 0 }}>🪑 Mesas</h2>
+        <p style={{ margin: "4px 0 0", color: "#6b7280" }}>Gestión y control de mesas</p>
       </div>
 
       <MesasResumen
@@ -206,7 +206,7 @@ export default function MesasModule({ estado }: Props) {
               boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
             }}
           >
-            Ninguna mesa coincide con el filtro o la bÃºsqueda actual.
+            Ninguna mesa coincide con el filtro o la búsqueda actual.
           </div>
         )
       )}
@@ -245,10 +245,10 @@ export default function MesasModule({ estado }: Props) {
 
       {mesaAConfirmar && (
         <ConfirmModal
-          titulo={`Cerrar cuenta â€” Mesa ${mesaAConfirmar.numero}`}
+          titulo={`Cerrar cuenta — Mesa ${mesaAConfirmar.numero}`}
           mensaje={`Productos: ${mesaAConfirmar.productos.length}\nTotal: ${formatoCOP(
             mesaAConfirmar.total
-          )}\n\nÂ¿Deseas confirmar el pago y cerrar esta mesa?`}
+          )}\n\n¿Deseas confirmar el pago y cerrar esta mesa?`}
           etiquetaConfirmar="Confirmar pago"
           peligroso
           onConfirmar={confirmarCierre}

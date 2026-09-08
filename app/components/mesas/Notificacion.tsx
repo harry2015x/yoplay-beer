@@ -31,11 +31,11 @@ export default function Notificacion({ notificacion, onCerrar }: Props) {
         zIndex: 80,
       }}
     >
-      <span aria-hidden="true">{exito ? "âœ…" : "âš ï¸"}</span>
+      <span aria-hidden="true">{exito ? "✅" : "⚠️"}</span>
       <span style={{ fontSize: "14px" }}>{notificacion.mensaje}</span>
       <button
         onClick={onCerrar}
-        aria-label="Cerrar notificaciÃ³n"
+        aria-label="Cerrar notificación"
         style={{
           background: "transparent",
           border: "none",
@@ -45,7 +45,7 @@ export default function Notificacion({ notificacion, onCerrar }: Props) {
           marginLeft: "4px",
         }}
       >
-        Ã—
+        ×
       </button>
     </div>
   );

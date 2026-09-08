@@ -30,11 +30,11 @@ export default function PedidoActual({
         height: "100%",
       }}
     >
-      <h3 style={{ marginTop: 0 }}>ðŸ§¾ Pedido actual</h3>
+      <h3 style={{ marginTop: 0 }}>🧾 Pedido actual</h3>
 
       <div style={{ flex: 1, overflowY: "auto" }}>
         {productos.length === 0 ? (
-          <p style={{ color: "#6b7280" }}>No hay productos agregados todavÃ­a.</p>
+          <p style={{ color: "#6b7280" }}>No hay productos agregados todavía.</p>
         ) : (
           productos.map((item) => (
             <div
@@ -71,7 +71,7 @@ export default function PedidoActual({
                     fontSize: "16px",
                   }}
                 >
-                  âˆ’
+                  −
                 </button>
 
                 <strong>{item.cantidad}</strong>

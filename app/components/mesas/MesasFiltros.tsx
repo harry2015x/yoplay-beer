@@ -55,7 +55,7 @@ export default function MesasFiltros({ filtro, onCambiarFiltro, busqueda, onCamb
         type="search"
         value={busqueda}
         onChange={(evento) => onCambiarBusqueda(evento.target.value)}
-        placeholder="Buscar mesa por nÃºmero..."
+        placeholder="Buscar mesa por número..."
         aria-label="Buscar mesa"
         style={{
           padding: "10px 14px",
