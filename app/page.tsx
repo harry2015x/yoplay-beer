@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-
 type Producto = {
   id: number;
   nombre: string;
@@ -37,32 +36,43 @@ export default function Home() {
   const [mesaSeleccionada, setMesaSeleccionada] =
     useState<number | null>(null);
 
+    useEffect(() => {
+      cargarMesas();
+    }, []);
+    
+    const cargarMesas = async () => {
+      const { data, error } = await supabase
+        .from("mesas")
+        .select("*")
+        .order("numero");
+    
+      if (error) {
+        console.error(error);
+        return;
+      }
+    
+      if (data) {
+        const mesasSupabase: Mesa[] = data.map((mesa) => ({
+          id: mesa.numero,
+          estado:
+            mesa.estado === "ocupada"
+              ? "Ocupada"
+              : "Libre",
+          total: 0,
+          productos: [],
+        }));
+    
+        setMesas(mesasSupabase);
+      }
+    };
+
   const [mesas, setMesas] = useState<Mesa[]>([]);
 
   useEffect(() => {
     cargarMesas();
   }, []);
   
-  async function cargarMesas() {
-    const { data, error } = await supabase
-      .from("mesas")
-      .select("*")
-      .order("numero");
   
-    if (error) {
-      console.error("Error cargando mesas:", error);
-      return;
-    }
-  
-    const mesasCargadas: Mesa[] = data.map((mesa) => ({
-      id: mesa.numero,
-      estado: "Libre",
-      total: 0,
-      productos: [],
-    }));
-  
-    setMesas(mesasCargadas);
-  }
 
   const [ventas, setVentas] = useState<Venta[]>([]);
 
