@@ -1,0 +1,63 @@
+/* ARCHIVO: app/components/inventario/inventario.module.css
+   Solo contiene lo que los estilos inline no pueden expresar:
+   @keyframes para el shimmer del skeleton y la aparición de modales.
+   El resto del módulo usa style={{ }} como el resto del proyecto. */
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #eceff3 25%, #f6f7f9 37%, #eceff3 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: 12px;
+}
+
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalScaleIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.overlay {
+  animation: overlayFadeIn 140ms ease;
+}
+
+.modal {
+  animation: modalScaleIn 160ms ease;
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toast {
+  animation: toastSlideIn 160ms ease;
+}
