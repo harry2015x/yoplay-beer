@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabase";
 
 type Producto = {
   id: number;
@@ -30,87 +31,38 @@ type Venta = {
 };
 
 export default function Home() {
+
   const [seccion, setSeccion] = useState("Inicio");
 
   const [mesaSeleccionada, setMesaSeleccionada] =
     useState<number | null>(null);
 
-  const [mesas, setMesas] = useState<Mesa[]>([
-    {
-      id: 1,
+  const [mesas, setMesas] = useState<Mesa[]>([]);
+
+  useEffect(() => {
+    cargarMesas();
+  }, []);
+  
+  async function cargarMesas() {
+    const { data, error } = await supabase
+      .from("mesas")
+      .select("*")
+      .order("numero");
+  
+    if (error) {
+      console.error("Error cargando mesas:", error);
+      return;
+    }
+  
+    const mesasCargadas: Mesa[] = data.map((mesa) => ({
+      id: mesa.numero,
       estado: "Libre",
       total: 0,
       productos: [],
-    },
-    {
-      id: 2,
-      estado: "Libre",
-      total: 0,
-      productos: [],
-    },
-    {
-      id: 3,
-      estado: "Ocupada",
-      total: 45000,
-      productos: [
-        {
-          productoId: 1,
-          nombre: "Cerveza",
-          precio: 5000,
-          cantidad: 5,
-        },
-        {
-          productoId: 2,
-          nombre: "Aguila",
-          precio: 5000,
-          cantidad: 4,
-        },
-      ],
-    },
-    {
-      id: 4,
-      estado: "Libre",
-      total: 0,
-      productos: [],
-    },
-    {
-      id: 5,
-      estado: "Ocupada",
-      total: 78000,
-      productos: [
-        {
-          productoId: 1,
-          nombre: "Cerveza",
-          precio: 5000,
-          cantidad: 6,
-        },
-        {
-          productoId: 3,
-          nombre: "Gaseosa",
-          precio: 6000,
-          cantidad: 8,
-        },
-      ],
-    },
-    {
-      id: 6,
-      estado: "Libre",
-      total: 0,
-      productos: [],
-    },
-    {
-      id: 7,
-      estado: "Libre",
-      total: 0,
-      productos: [],
-    },
-    {
-      id: 8,
-      estado: "Libre",
-      total: 0,
-      productos: [],
-    },
-  ]);
+    }));
+  
+    setMesas(mesasCargadas);
+  }
 
   const [ventas, setVentas] = useState<Venta[]>([]);
 
