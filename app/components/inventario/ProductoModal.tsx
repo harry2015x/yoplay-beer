@@ -1,12 +1,16 @@
+// ARCHIVO: app/components/inventario/ProductoModal.tsx
+
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type {
   EdicionProductoInput,
   NuevoProductoInput,
   ProductoInventario,
 } from "../../../types/inventario";
+
+import { supabase } from "../../../lib/supabase";
 
 import styles from "./inventario.module.css";
 
@@ -50,7 +54,6 @@ type FormState = {
 
   precioVenta: string;
 
-  // NUEVO
   imagenUrl: string;
 
   activo: boolean;
@@ -73,10 +76,7 @@ function estadoInicial(
       unidad: "unidad",
       precioCompra: "",
       precioVenta: "",
-
-      // NUEVO
       imagenUrl: "",
-
       activo: true,
     };
   }
@@ -109,7 +109,6 @@ function estadoInicial(
         ? String(producto.precioVenta)
         : "",
 
-    // NUEVO
     imagenUrl:
       producto.imagenUrl ?? "",
 
@@ -188,6 +187,11 @@ export default function ProductoModal({
   onCrear,
   onEditar,
 }: Props) {
+
+  // ==========================================================
+  // ESTADOS
+  // ==========================================================
+
   const [form, setForm] =
     useState<FormState>(
       estadoInicial(productoExistente)
@@ -196,8 +200,47 @@ export default function ProductoModal({
   const [guardando, setGuardando] =
     useState(false);
 
+  // Archivo seleccionado desde el computador
+  const [imagenArchivo, setImagenArchivo] =
+    useState<File | null>(null);
+
+  // URL para mostrar la vista previa
+  const [vistaPrevia, setVistaPrevia] =
+    useState<string>(
+      productoExistente?.imagenUrl ?? ""
+    );
+
+  // Indica si el usuario desea eliminar la imagen actual
+  const [eliminarImagen, setEliminarImagen] =
+    useState(false);
+
+  // ==========================================================
+  // EDICION
+  // ==========================================================
+
   const esEdicion =
     productoExistente !== null;
+
+
+  // ==========================================================
+  // LIBERAR URL TEMPORAL
+  // ==========================================================
+
+  useEffect(() => {
+
+    return () => {
+
+      if (
+        vistaPrevia &&
+        vistaPrevia.startsWith("blob:")
+      ) {
+        URL.revokeObjectURL(vistaPrevia);
+      }
+
+    };
+
+  }, [vistaPrevia]);
+
 
   // ==========================================================
   // ACTUALIZAR CAMPO
@@ -209,11 +252,244 @@ export default function ProductoModal({
     campo: K,
     valor: FormState[K]
   ) {
+
     setForm((prev) => ({
       ...prev,
       [campo]: valor,
     }));
+
   }
+
+
+  // ==========================================================
+  // SELECCIONAR IMAGEN
+  // ==========================================================
+
+  function manejarSeleccionImagen(
+    evento: React.ChangeEvent<HTMLInputElement>
+  ) {
+
+    const archivo =
+      evento.target.files?.[0];
+
+    if (!archivo) {
+      return;
+    }
+
+
+    // Validar tipo de archivo
+
+    if (
+      !archivo.type.startsWith("image/")
+    ) {
+
+      alert(
+        "Por favor selecciona un archivo de imagen válido."
+      );
+
+      return;
+
+    }
+
+
+    // Tamaño máximo: 5 MB
+
+    const tamañoMaximo =
+      5 * 1024 * 1024;
+
+    if (
+      archivo.size > tamañoMaximo
+    ) {
+
+      alert(
+        "La imagen no puede superar los 5 MB."
+      );
+
+      return;
+
+    }
+
+
+    // Eliminar preview anterior temporal
+
+    if (
+      vistaPrevia &&
+      vistaPrevia.startsWith("blob:")
+    ) {
+
+      URL.revokeObjectURL(
+        vistaPrevia
+      );
+
+    }
+
+
+    // Crear URL temporal
+
+    const nuevaVistaPrevia =
+      URL.createObjectURL(archivo);
+
+
+    setImagenArchivo(
+      archivo
+    );
+
+
+    setVistaPrevia(
+      nuevaVistaPrevia
+    );
+
+
+    setEliminarImagen(
+      false
+    );
+
+  }
+
+
+  // ==========================================================
+  // ELIMINAR IMAGEN
+  // ==========================================================
+
+  function manejarEliminarImagen() {
+
+    if (
+      vistaPrevia &&
+      vistaPrevia.startsWith("blob:")
+    ) {
+
+      URL.revokeObjectURL(
+        vistaPrevia
+      );
+
+    }
+
+
+    setImagenArchivo(
+      null
+    );
+
+
+    setVistaPrevia(
+      ""
+    );
+
+
+    setEliminarImagen(
+      true
+    );
+
+
+    setForm((prev) => ({
+      ...prev,
+      imagenUrl: "",
+    }));
+
+  }
+
+
+  // ==========================================================
+  // SUBIR IMAGEN A SUPABASE STORAGE
+  // ==========================================================
+
+  async function subirImagen(): Promise<
+    string | null
+  > {
+
+    // Si no hay una nueva imagen seleccionada,
+    // conservar la actual.
+
+    if (!imagenArchivo) {
+
+      if (eliminarImagen) {
+        return null;
+      }
+
+      return form.imagenUrl || null;
+
+    }
+
+
+    // Obtener extensión
+
+    const nombreArchivo =
+      imagenArchivo.name;
+
+
+    const extension =
+      nombreArchivo.includes(".")
+        ? nombreArchivo
+            .split(".")
+            .pop()
+            ?.toLowerCase()
+        : "jpg";
+
+
+    // Crear nombre único
+
+    const nombreUnico =
+      `${Date.now()}-${crypto.randomUUID()}.${extension}`;
+
+
+    // Carpeta dentro del bucket
+
+    const rutaArchivo =
+      `productos/${nombreUnico}`;
+
+
+    // Subir imagen
+
+    const {
+      error: errorSubida,
+    } = await supabase.storage
+      .from("productos")
+      .upload(
+        rutaArchivo,
+        imagenArchivo,
+        {
+          cacheControl: "3600",
+          upsert: false,
+          contentType:
+            imagenArchivo.type,
+        }
+      );
+
+
+    if (errorSubida) {
+
+      console.error(
+        "Error al subir imagen:",
+        errorSubida
+      );
+
+
+      alert(
+        `Error al subir la imagen: ${errorSubida.message}`
+      );
+
+
+      throw errorSubida;
+
+    }
+
+
+    // Obtener URL pública
+
+    const {
+      data: datosPublicos,
+    } = supabase.storage
+      .from("productos")
+      .getPublicUrl(
+        rutaArchivo
+      );
+
+
+    return (
+      datosPublicos.publicUrl
+    );
+
+  }
+
 
   // ==========================================================
   // GUARDAR
@@ -222,121 +498,188 @@ export default function ProductoModal({
   async function manejarSubmit(
     evento: React.FormEvent
   ) {
+
     evento.preventDefault();
 
-    setGuardando(true);
 
-    const precioCompra =
-      form.precioCompra.trim() === ""
-        ? null
-        : Number(form.precioCompra);
+    setGuardando(
+      true
+    );
 
-    const precioVenta =
-      form.precioVenta.trim() === ""
-        ? null
-        : Number(form.precioVenta);
 
-    let exito = false;
+    try {
 
-    // ========================================================
-    // EDITAR
-    // ========================================================
+      // ======================================================
+      // PRECIOS
+      // ======================================================
 
-    if (
-      esEdicion &&
-      productoExistente
-    ) {
-      const input: EdicionProductoInput = {
-        nombre:
-          form.nombre,
+      const precioCompra =
+        form.precioCompra.trim() === ""
+          ? null
+          : Number(
+              form.precioCompra
+            );
 
-        descripcion:
-          form.descripcion,
 
-        categoria:
-          form.categoria,
+      const precioVenta =
+        form.precioVenta.trim() === ""
+          ? null
+          : Number(
+              form.precioVenta
+            );
 
-        stockMinimo:
-          Number(form.stockMinimo),
 
-        unidad:
-          form.unidad,
+      // ======================================================
+      // SUBIR IMAGEN
+      // ======================================================
 
-        precioCompra,
+      const imagenUrl =
+        await subirImagen();
 
-        precioVenta,
 
-        // NUEVO
-        imagenUrl:
-          form.imagenUrl.trim() === ""
-            ? null
-            : form.imagenUrl.trim(),
+      let exito =
+        false;
 
-        activo:
-          form.activo,
-      };
 
-      exito =
-        await onEditar(
-          productoExistente.id,
-          input
-        );
+      // ======================================================
+      // EDITAR
+      // ======================================================
+
+      if (
+        esEdicion &&
+        productoExistente
+      ) {
+
+        const input:
+          EdicionProductoInput = {
+
+          nombre:
+            form.nombre.trim(),
+
+          descripcion:
+            form.descripcion.trim(),
+
+          categoria:
+            form.categoria.trim(),
+
+          stockMinimo:
+            Number(
+              form.stockMinimo
+            ),
+
+          unidad:
+            form.unidad.trim(),
+
+          precioCompra,
+
+          precioVenta,
+
+          imagenUrl,
+
+          activo:
+            form.activo,
+
+        };
+
+
+        exito =
+          await onEditar(
+            productoExistente.id,
+            input
+          );
+
+      }
+
+
+      // ======================================================
+      // CREAR
+      // ======================================================
+
+      else {
+
+        const input:
+          NuevoProductoInput = {
+
+          nombre:
+            form.nombre.trim(),
+
+          descripcion:
+            form.descripcion.trim(),
+
+          categoria:
+            form.categoria.trim(),
+
+          stock:
+            Number(
+              form.stock
+            ),
+
+          stockMinimo:
+            Number(
+              form.stockMinimo
+            ),
+
+          unidad:
+            form.unidad.trim(),
+
+          precioCompra,
+
+          precioVenta,
+
+          imagenUrl,
+
+          activo:
+            form.activo,
+
+        };
+
+
+        exito =
+          await onCrear(
+            input
+          );
+
+      }
+
+
+      // ======================================================
+      // CERRAR MODAL
+      // ======================================================
+
+      if (exito) {
+
+        onCancelar();
+
+      }
+
     }
 
-    // ========================================================
-    // CREAR
-    // ========================================================
+    catch (error) {
 
-    else {
-      const input: NuevoProductoInput = {
-        nombre:
-          form.nombre,
+      console.error(
+        "Error guardando producto:",
+        error
+      );
 
-        descripcion:
-          form.descripcion,
-
-        categoria:
-          form.categoria,
-
-        stock:
-          Number(form.stock),
-
-        stockMinimo:
-          Number(form.stockMinimo),
-
-        unidad:
-          form.unidad,
-
-        precioCompra,
-
-        precioVenta,
-
-        // NUEVO
-        imagenUrl:
-          form.imagenUrl.trim() === ""
-            ? null
-            : form.imagenUrl.trim(),
-
-        activo:
-          form.activo,
-      };
-
-      exito =
-        await onCrear(input);
     }
 
-    setGuardando(false);
+    finally {
 
-    if (exito) {
-      onCancelar();
+      setGuardando(
+        false
+      );
+
     }
+
   }
+
 
   // ==========================================================
   // RENDER
   // ==========================================================
 
   return (
+
     <div
       className={styles.overlay}
       role="presentation"
@@ -353,6 +696,7 @@ export default function ProductoModal({
         padding: 16,
       }}
     >
+
       <div
         role="dialog"
         aria-modal="true"
@@ -373,6 +717,8 @@ export default function ProductoModal({
           padding: 24,
         }}
       >
+
+
         {/* ================================================= */}
         {/* TITULO */}
         {/* ================================================= */}
@@ -387,14 +733,23 @@ export default function ProductoModal({
               "0 0 18px 0",
           }}
         >
+
           {esEdicion
             ? "✏️ Editar producto"
             : "➕ Nuevo producto"}
+
         </h2>
+
 
         <form
           onSubmit={manejarSubmit}
         >
+
+
+          {/* =============================================== */}
+          {/* CAMPOS */}
+          {/* =============================================== */}
+
           <div
             style={{
               display: "grid",
@@ -404,6 +759,8 @@ export default function ProductoModal({
               marginBottom: 16,
             }}
           >
+
+
             {/* NOMBRE */}
 
             <div
@@ -412,10 +769,12 @@ export default function ProductoModal({
                   "1 / -1",
               }}
             >
+
               <Campo
                 etiqueta="Nombre"
                 requerido
               >
+
                 <input
                   type="text"
                   value={form.nombre}
@@ -429,8 +788,11 @@ export default function ProductoModal({
                   style={estiloInput}
                   placeholder="Cerveza Poker"
                 />
+
               </Campo>
+
             </div>
+
 
             {/* DESCRIPCION */}
 
@@ -440,9 +802,11 @@ export default function ProductoModal({
                   "1 / -1",
               }}
             >
+
               <Campo
                 etiqueta="Descripción"
               >
+
                 <input
                   type="text"
                   value={
@@ -455,16 +819,20 @@ export default function ProductoModal({
                     )
                   }
                   style={estiloInput}
-                  placeholder="Botella 330ml"
+                  placeholder="Botella 330 ml"
                 />
+
               </Campo>
+
             </div>
+
 
             {/* CATEGORIA */}
 
             <Campo
               etiqueta="Categoría"
             >
+
               <input
                 type="text"
                 value={
@@ -479,13 +847,16 @@ export default function ProductoModal({
                 style={estiloInput}
                 placeholder="Cervezas"
               />
+
             </Campo>
+
 
             {/* UNIDAD */}
 
             <Campo
               etiqueta="Unidad"
             >
+
               <input
                 type="text"
                 value={
@@ -500,15 +871,19 @@ export default function ProductoModal({
                 style={estiloInput}
                 placeholder="unidad, caja, botella..."
               />
+
             </Campo>
+
 
             {/* STOCK INICIAL */}
 
             {!esEdicion && (
+
               <Campo
                 etiqueta="Stock inicial"
                 requerido
               >
+
                 <input
                   type="number"
                   min={0}
@@ -525,8 +900,11 @@ export default function ProductoModal({
                   required
                   style={estiloInput}
                 />
+
               </Campo>
+
             )}
+
 
             {/* STOCK MINIMO */}
 
@@ -534,6 +912,7 @@ export default function ProductoModal({
               etiqueta="Stock mínimo"
               requerido
             >
+
               <input
                 type="number"
                 min={0}
@@ -550,13 +929,16 @@ export default function ProductoModal({
                 required
                 style={estiloInput}
               />
+
             </Campo>
+
 
             {/* PRECIO COMPRA */}
 
             <Campo
               etiqueta="Precio de compra"
             >
+
               <input
                 type="number"
                 min={0}
@@ -573,13 +955,16 @@ export default function ProductoModal({
                 style={estiloInput}
                 placeholder="0"
               />
+
             </Campo>
+
 
             {/* PRECIO VENTA */}
 
             <Campo
               etiqueta="Precio de venta"
             >
+
               <input
                 type="number"
                 min={0}
@@ -596,10 +981,12 @@ export default function ProductoModal({
                 style={estiloInput}
                 placeholder="0"
               />
+
             </Campo>
 
+
             {/* ============================================= */}
-            {/* IMAGEN */}
+            {/* IMAGEN DEL PRODUCTO */}
             {/* ============================================= */}
 
             <div
@@ -608,82 +995,222 @@ export default function ProductoModal({
                   "1 / -1",
               }}
             >
+
               <Campo
                 etiqueta="Imagen del producto"
               >
-                <input
-                  type="url"
-                  value={
-                    form.imagenUrl
-                  }
-                  onChange={(e) =>
-                    actualizar(
-                      "imagenUrl",
-                      e.target.value
-                    )
-                  }
-                  style={estiloInput}
-                  placeholder="https://ejemplo.com/imagen.jpg"
-                />
-              </Campo>
 
-              {/* VISTA PREVIA */}
 
-              {form.imagenUrl.trim() !== "" && (
                 <div
                   style={{
-                    marginTop: 12,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 16,
-                    padding: 12,
                     border:
-                      "1px solid #e5e7eb",
-                    borderRadius: 10,
+                      "2px dashed #cbd5e1",
+                    borderRadius: 12,
+                    padding: 18,
                     background:
                       "#f8fafc",
                   }}
                 >
-                  <img
-                    src={form.imagenUrl}
-                    alt="Vista previa"
+
+
+                  <input
+                    id="imagen-producto"
+                    type="file"
+                    accept="image/*"
+                    onChange={
+                      manejarSeleccionImagen
+                    }
                     style={{
-                      width: 100,
-                      height: 100,
-                      objectFit: "cover",
-                      borderRadius: 10,
-                      border:
-                        "1px solid #e5e7eb",
-                    }}
-                    onError={(e) => {
-                      e.currentTarget.style.display =
-                        "none";
+                      display:
+                        "none",
                     }}
                   />
 
-                  <div
+
+                  {/* BOTON SELECCIONAR */}
+
+                  <label
+                    htmlFor="imagen-producto"
                     style={{
-                      fontSize: 13,
+                      display:
+                        "inline-flex",
+                      alignItems:
+                        "center",
+                      justifyContent:
+                        "center",
+                      gap: 8,
+                      padding:
+                        "10px 16px",
+                      borderRadius: 8,
+                      background:
+                        "#2563eb",
                       color:
-                        "#6b7280",
+                        "white",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      cursor:
+                        guardando
+                          ? "default"
+                          : "pointer",
                     }}
                   >
-                    🖼️ Vista previa de la imagen
-                  </div>
+
+                    📁 Seleccionar imagen
+
+                  </label>
+
+
+                  <p
+                    style={{
+                      margin:
+                        "10px 0 0",
+                      fontSize: 12,
+                      color:
+                        "#64748b",
+                    }}
+                  >
+
+                    JPG, PNG, WEBP u otros formatos de imagen.
+                    Tamaño máximo: 5 MB.
+
+                  </p>
+
+
+                  {/* VISTA PREVIA */}
+
+                  {vistaPrevia && (
+
+                    <div
+                      style={{
+                        marginTop: 16,
+                        display:
+                          "flex",
+                        alignItems:
+                          "center",
+                        gap: 16,
+                        padding: 12,
+                        border:
+                          "1px solid #e5e7eb",
+                        borderRadius: 10,
+                        background:
+                          "white",
+                      }}
+                    >
+
+
+                      <img
+                        src={
+                          vistaPrevia
+                        }
+                        alt="Vista previa del producto"
+                        style={{
+                          width: 100,
+                          height: 100,
+                          objectFit:
+                            "cover",
+                          borderRadius: 10,
+                          border:
+                            "1px solid #e5e7eb",
+                        }}
+                      />
+
+
+                      <div
+                        style={{
+                          flex: 1,
+                        }}
+                      >
+
+                        <div
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color:
+                              "#111827",
+                            marginBottom: 4,
+                          }}
+                        >
+
+                          🖼️ Vista previa
+
+                        </div>
+
+
+                        {imagenArchivo && (
+
+                          <div
+                            style={{
+                              fontSize: 12,
+                              color:
+                                "#64748b",
+                            }}
+                          >
+
+                            {imagenArchivo.name}
+
+                          </div>
+
+                        )}
+
+
+                        <button
+                          type="button"
+                          onClick={
+                            manejarEliminarImagen
+                          }
+                          disabled={
+                            guardando
+                          }
+                          style={{
+                            marginTop: 10,
+                            padding:
+                              "7px 10px",
+                            borderRadius: 7,
+                            border:
+                              "none",
+                            background:
+                              "#fee2e2",
+                            color:
+                              "#dc2626",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor:
+                              guardando
+                                ? "default"
+                                : "pointer",
+                          }}
+                        >
+
+                          🗑️ Quitar imagen
+
+                        </button>
+
+                      </div>
+
+                    </div>
+
+                  )}
+
                 </div>
-              )}
+
+              </Campo>
+
             </div>
+
 
             {/* PRODUCTO ACTIVO */}
 
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
+                display:
+                  "flex",
+                alignItems:
+                  "center",
                 gap: 8,
                 marginTop: 20,
               }}
             >
+
               <input
                 id="producto-activo"
                 type="checkbox"
@@ -702,6 +1229,7 @@ export default function ProductoModal({
                 }}
               />
 
+
               <label
                 htmlFor="producto-activo"
                 style={{
@@ -710,33 +1238,65 @@ export default function ProductoModal({
                   fontWeight: 600,
                 }}
               >
+
                 Producto activo
+
               </label>
+
             </div>
+
+
           </div>
 
+
+          {/* =============================================== */}
           {/* INFORMACION DE EDICION */}
+          {/* =============================================== */}
 
           {esEdicion && (
+
             <p
               style={{
                 fontSize: 12,
                 color: "#6b7280",
-                background: "#f4f6f8",
+                background:
+                  "#f4f6f8",
                 borderRadius: 8,
-                padding: "10px 12px",
+                padding:
+                  "10px 12px",
                 marginBottom: 16,
               }}
             >
-              El stock no se edita aquí. Usa los botones de{" "}
-              <strong>Entrada</strong>,{" "}
-              <strong>Salida</strong> o{" "}
-              <strong>Ajustar</strong>{" "}
-              en la tarjeta del producto.
+
+              El stock no se edita aquí.
+              Usa los botones de{" "}
+
+              <strong>
+                Entrada
+              </strong>
+
+              ,{" "}
+
+              <strong>
+                Salida
+              </strong>
+
+              o{" "}
+
+              <strong>
+                Ajustar
+              </strong>
+
+              {" "}en la tarjeta del producto.
+
             </p>
+
           )}
 
+
+          {/* =============================================== */}
           {/* BOTONES */}
+          {/* =============================================== */}
 
           <div
             style={{
@@ -747,6 +1307,10 @@ export default function ProductoModal({
               marginTop: 8,
             }}
           >
+
+
+            {/* CANCELAR */}
+
             <button
               type="button"
               onClick={onCancelar}
@@ -757,8 +1321,10 @@ export default function ProductoModal({
                 borderRadius: 8,
                 border:
                   "1px solid #d1d5db",
-                background: "white",
-                color: "#374151",
+                background:
+                  "white",
+                color:
+                  "#374151",
                 fontWeight: 600,
                 cursor:
                   guardando
@@ -766,8 +1332,13 @@ export default function ProductoModal({
                     : "pointer",
               }}
             >
+
               Cancelar
+
             </button>
+
+
+            {/* GUARDAR */}
 
             <button
               type="submit"
@@ -776,9 +1347,12 @@ export default function ProductoModal({
                 padding:
                   "10px 16px",
                 borderRadius: 8,
-                border: "none",
-                background: "#2563eb",
-                color: "white",
+                border:
+                  "none",
+                background:
+                  "#2563eb",
+                color:
+                  "white",
                 fontWeight: 600,
                 cursor:
                   guardando
@@ -790,13 +1364,25 @@ export default function ProductoModal({
                     : 1,
               }}
             >
+
               {guardando
-                ? "Guardando..."
+                ? "Subiendo y guardando..."
                 : "Guardar"}
+
             </button>
+
+
           </div>
+
+
         </form>
+
+
       </div>
+
+
     </div>
+
   );
+
 }
