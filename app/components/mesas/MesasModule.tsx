@@ -1,11 +1,20 @@
 ﻿"use client";
 
 import { useMemo, useState } from "react";
-import { UseMesasResult } from "../../../hooks/useMesas";
-import { Mesa, formatoCOP } from "../../../types/mesas";
+
+import type { UseMesasResult } from "../../../hooks/useMesas";
+import { useInventario } from "../../../hooks/useInventario";
+
+import {
+  Mesa,
+  Producto,
+  formatoCOP,
+} from "../../../types/mesas";
 
 import MesasResumen from "./MesasResumen";
-import MesasFiltros, { FiltroMesas } from "./MesasFiltros";
+import MesasFiltros, {
+  FiltroMesas,
+} from "./MesasFiltros";
 import MesaCard from "./MesaCard";
 import MesaModal from "./MesaModal";
 import ConfirmModal from "./ConfirmModal";
@@ -15,10 +24,55 @@ type Props = {
   estado: UseMesasResult;
 };
 
-export default function MesasModule({ estado }: Props) {
-  const [filtro, setFiltro] = useState<FiltroMesas>("todas");
-  const [busqueda, setBusqueda] = useState("");
-  const [mesaAConfirmar, setMesaAConfirmar] = useState<Mesa | null>(null);
+export default function MesasModule({
+  estado,
+}: Props) {
+  const [filtro, setFiltro] =
+    useState<FiltroMesas>("todas");
+
+  const [busqueda, setBusqueda] =
+    useState("");
+
+  const [mesaAConfirmar, setMesaAConfirmar] =
+    useState<Mesa | null>(null);
+
+  // ============================================================
+  // INVENTARIO
+  // ============================================================
+
+  const {
+    productos: productosInventario,
+    cargandoProductos,
+  } = useInventario();
+
+  // ============================================================
+  // CONVERTIR PRODUCTOS DEL INVENTARIO
+  // AL FORMATO UTILIZADO POR MESAS
+  // ============================================================
+
+  const productos = useMemo<Producto[]>(() => {
+    return productosInventario
+      .filter((producto) => producto.activo)
+      .map((producto) => ({
+        id: producto.id,
+
+        nombre: producto.nombre,
+
+        // En inventario se llama precioVenta.
+        // En Mesas se llama precio.
+        precio: producto.precioVenta ?? 0,
+
+        categoria:
+          producto.categoria ?? null,
+
+        imagenUrl:
+          producto.imagenUrl ?? null,
+      }));
+  }, [productosInventario]);
+
+  // ============================================================
+  // ESTADO DE MESAS
+  // ============================================================
 
   const {
     mesas,
@@ -39,25 +93,47 @@ export default function MesasModule({ estado }: Props) {
     cerrarMesa,
   } = estado;
 
+  // ============================================================
+  // FILTRAR MESAS
+  // ============================================================
+
   const mesasFiltradas = useMemo(() => {
     return mesas.filter((mesa) => {
       const coincideFiltro =
         filtro === "todas" ||
-        (filtro === "libres" && mesa.estado === "Libre") ||
-        (filtro === "ocupadas" && mesa.estado === "Ocupada");
+        (filtro === "libres" &&
+          mesa.estado === "Libre") ||
+        (filtro === "ocupadas" &&
+          mesa.estado === "Ocupada");
 
       const coincideBusqueda =
         busqueda.trim() === "" ||
-        String(mesa.numero).includes(busqueda.trim());
+        String(mesa.numero).includes(
+          busqueda.trim()
+        );
 
-      return coincideFiltro && coincideBusqueda;
+      return (
+        coincideFiltro &&
+        coincideBusqueda
+      );
     });
-  }, [mesas, filtro, busqueda]);
+  }, [
+    mesas,
+    filtro,
+    busqueda,
+  ]);
+
+  // ============================================================
+  // CONFIRMAR CIERRE
+  // ============================================================
 
   async function confirmarCierre() {
     if (!mesaAConfirmar) return;
 
-    const exito = await cerrarMesa(mesaAConfirmar.id);
+    const exito =
+      await cerrarMesa(
+        mesaAConfirmar.id
+      );
 
     if (exito) {
       setMesaAConfirmar(null);
@@ -65,25 +141,43 @@ export default function MesasModule({ estado }: Props) {
     }
   }
 
-  function solicitarCierre(mesa: Mesa) {
+  // ============================================================
+  // SOLICITAR CIERRE
+  // ============================================================
+
+  function solicitarCierre(
+    mesa: Mesa
+  ) {
     setMesaAConfirmar(mesa);
     cerrarModal();
   }
 
+  // ============================================================
+  // RENDER
+  // ============================================================
+
   return (
     <div>
+
       <style>{`
         .mesa-card {
-          transition: transform 160ms ease, box-shadow 160ms ease;
+          transition:
+            transform 160ms ease,
+            box-shadow 160ms ease;
         }
 
         .mesa-card:hover {
           transform: translateY(-2px);
-          box-shadow: 0 10px 24px rgba(0, 0, 0, 0.1);
+
+          box-shadow:
+            0 10px 24px
+            rgba(0, 0, 0, 0.1);
         }
 
         .mesa-btn {
-          transition: filter 120ms ease, transform 120ms ease;
+          transition:
+            filter 120ms ease,
+            transform 120ms ease;
         }
 
         .mesa-btn:hover:not(:disabled) {
@@ -101,7 +195,9 @@ export default function MesasModule({ estado }: Props) {
         }
 
         .mesas-modal-entrada {
-          animation: mesas-aparecer 160ms ease;
+          animation:
+            mesas-aparecer
+            160ms ease;
         }
 
         @keyframes mesas-aparecer {
@@ -117,15 +213,20 @@ export default function MesasModule({ estado }: Props) {
         }
 
         .mesas-skeleton {
-          background: linear-gradient(
-            90deg,
-            #eceff3 25%,
-            #f6f7f9 37%,
-            #eceff3 63%
-          );
+          background:
+            linear-gradient(
+              90deg,
+              #eceff3 25%,
+              #f6f7f9 37%,
+              #eceff3 63%
+            );
 
           background-size: 400% 100%;
-          animation: mesas-shimmer 1.4s ease infinite;
+
+          animation:
+            mesas-shimmer
+            1.4s ease infinite;
+
           border-radius: 16px;
           height: 168px;
         }
@@ -141,8 +242,22 @@ export default function MesasModule({ estado }: Props) {
         }
       `}</style>
 
-      <div style={{ marginBottom: "18px" }}>
-        <h2 style={{ margin: 0 }}>🪑 Mesas</h2>
+      {/* =====================================================
+          ENCABEZADO
+      ===================================================== */}
+
+      <div
+        style={{
+          marginBottom: "18px",
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+          }}
+        >
+          🪑 Mesas
+        </h2>
 
         <p
           style={{
@@ -154,6 +269,10 @@ export default function MesasModule({ estado }: Props) {
         </p>
       </div>
 
+      {/* =====================================================
+          RESUMEN
+      ===================================================== */}
+
       <MesasResumen
         total={resumen.total}
         libres={resumen.libres}
@@ -161,12 +280,20 @@ export default function MesasModule({ estado }: Props) {
         ventasActivas={resumen.ventasActivas}
       />
 
+      {/* =====================================================
+          FILTROS
+      ===================================================== */}
+
       <MesasFiltros
         filtro={filtro}
         onCambiarFiltro={setFiltro}
         busqueda={busqueda}
         onCambiarBusqueda={setBusqueda}
       />
+
+      {/* =====================================================
+          ERROR
+      ===================================================== */}
 
       {errorMesas && (
         <div
@@ -179,12 +306,15 @@ export default function MesasModule({ estado }: Props) {
             padding: "16px",
             marginBottom: "20px",
             display: "flex",
-            justifyContent: "space-between",
+            justifyContent:
+              "space-between",
             alignItems: "center",
             gap: "12px",
           }}
         >
-          <span>{errorMesas}</span>
+          <span>
+            {errorMesas}
+          </span>
 
           <button
             onClick={cargarMesas}
@@ -205,16 +335,24 @@ export default function MesasModule({ estado }: Props) {
         </div>
       )}
 
+      {/* =====================================================
+          CARGANDO MESAS
+      ===================================================== */}
+
       {cargandoMesas ? (
         <div
           style={{
             display: "grid",
+
             gridTemplateColumns:
               "repeat(auto-fit, minmax(200px, 1fr))",
+
             gap: "20px",
           }}
         >
-          {Array.from({ length: 8 }).map((_, indice) => (
+          {Array.from({
+            length: 8,
+          }).map((_, indice) => (
             <div
               key={indice}
               className="mesas-skeleton"
@@ -222,7 +360,10 @@ export default function MesasModule({ estado }: Props) {
             />
           ))}
         </div>
-      ) : !errorMesas && mesas.length === 0 ? (
+
+      ) : !errorMesas &&
+        mesas.length === 0 ? (
+
         <div
           style={{
             background: "white",
@@ -230,12 +371,16 @@ export default function MesasModule({ estado }: Props) {
             padding: "40px",
             textAlign: "center",
             color: "#6b7280",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+            boxShadow:
+              "0 2px 10px rgba(0,0,0,0.06)",
           }}
         >
           No hay mesas registradas.
         </div>
-      ) : !errorMesas && mesasFiltradas.length === 0 ? (
+
+      ) : !errorMesas &&
+        mesasFiltradas.length === 0 ? (
+
         <div
           style={{
             background: "white",
@@ -243,76 +388,148 @@ export default function MesasModule({ estado }: Props) {
             padding: "30px",
             textAlign: "center",
             color: "#6b7280",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+            boxShadow:
+              "0 2px 10px rgba(0,0,0,0.06)",
           }}
         >
-          Ninguna mesa coincide con el filtro o la búsqueda actual.
+          Ninguna mesa coincide con el filtro
+          o la búsqueda actual.
         </div>
+
       ) : null}
+
+      {/* =====================================================
+          LISTADO DE MESAS
+      ===================================================== */}
 
       {!cargandoMesas &&
         !errorMesas &&
         mesasFiltradas.length > 0 && (
+
           <div
             style={{
               display: "grid",
+
               gridTemplateColumns:
                 "repeat(auto-fit, minmax(200px, 1fr))",
+
               gap: "20px",
             }}
           >
-            {mesasFiltradas.map((mesa) => (
-              <MesaCard
-                key={mesa.id}
-                mesa={mesa}
-                onAbrir={abrirMesa}
-                onGestionar={seleccionarMesa}
-                onSolicitarCierre={solicitarCierre}
-              />
-            ))}
+            {mesasFiltradas.map(
+              (mesa) => (
+                <MesaCard
+                  key={mesa.id}
+                  mesa={mesa}
+                  onAbrir={abrirMesa}
+                  onGestionar={
+                    seleccionarMesa
+                  }
+                  onSolicitarCierre={
+                    solicitarCierre
+                  }
+                />
+              )
+            )}
           </div>
         )}
+
+      {/* =====================================================
+          MODAL DE LA MESA
+      ===================================================== */}
 
       {mesaActual && (
         <MesaModal
           mesa={mesaActual}
-          onCerrarModal={cerrarModal}
-          onAgregarProducto={agregarProducto}
-          onAumentar={aumentarCantidad}
-          onDisminuir={disminuirCantidad}
-          onEliminar={eliminarProducto}
-          onSolicitarCierre={solicitarCierre}
+
+          productos={productos}
+
+          cargandoProductos={
+            cargandoProductos
+          }
+
+          onCerrarModal={
+            cerrarModal
+          }
+
+          onAgregarProducto={
+            agregarProducto
+          }
+
+          onAumentar={
+            aumentarCantidad
+          }
+
+          onDisminuir={
+            disminuirCantidad
+          }
+
+          onEliminar={
+            eliminarProducto
+          }
+
+          onSolicitarCierre={
+            solicitarCierre
+          }
         />
       )}
 
+      {/* =====================================================
+          CONFIRMAR CIERRE
+      ===================================================== */}
+
       <ConfirmModal
-        abierto={mesaAConfirmar !== null}
+        abierto={
+          mesaAConfirmar !== null
+        }
+
         titulo={
           mesaAConfirmar
             ? `Cerrar cuenta — Mesa ${mesaAConfirmar.numero}`
             : ""
         }
+
         mensaje={
           mesaAConfirmar
             ? `Productos: ${mesaAConfirmar.productos.length}
-Total: ${formatoCOP(mesaAConfirmar.total)}
+
+Total: ${formatoCOP(
+  mesaAConfirmar.total
+)}
 
 ¿Deseas confirmar el pago y cerrar esta mesa?`
             : ""
         }
+
         etiquetaConfirmar="Confirmar pago"
+
         etiquetaCancelar="Cancelar"
+
         peligroso={true}
-        onConfirmar={confirmarCierre}
-        onCancelar={() => setMesaAConfirmar(null)}
+
+        onConfirmar={
+          confirmarCierre
+        }
+
+        onCancelar={() =>
+          setMesaAConfirmar(null)
+        }
       />
+
+      {/* =====================================================
+          NOTIFICACIONES
+      ===================================================== */}
 
       {notificacion && (
         <Notificacion
           notificacion={notificacion}
-          onCerrar={cerrarNotificacion}
+
+          onCerrar={
+            cerrarNotificacion
+          }
         />
       )}
+
     </div>
   );
 }

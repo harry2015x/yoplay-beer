@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useMesas } from "../hooks/useMesas";
 import { useInventario } from "../hooks/useInventario";
 
-import { PRODUCTOS, formatoCOP } from "../types/mesas";
+import { formatoCOP } from "../types/mesas";
 
 import MesasModule from "./components/mesas/MesasModule";
 import InventarioModule from "./components/inventario/InventarioModule";
@@ -61,7 +61,6 @@ export default function Home() {
         fontFamily: "Arial, sans-serif",
       }}
     >
-
       {/* ===================================================== */}
       {/* ENCABEZADO */}
       {/* ===================================================== */}
@@ -76,9 +75,7 @@ export default function Home() {
           alignItems: "center",
         }}
       >
-
         <div>
-
           <h1
             style={{
               margin: 0,
@@ -96,9 +93,7 @@ export default function Home() {
           >
             Sistema de ventas e inventario
           </p>
-
         </div>
-
 
         <div
           style={{
@@ -109,9 +104,7 @@ export default function Home() {
         >
           👤 Administrador
         </div>
-
       </header>
-
 
       {/* ===================================================== */}
       {/* CONTENEDOR PRINCIPAL */}
@@ -122,8 +115,6 @@ export default function Home() {
           display: "flex",
         }}
       >
-
-
         {/* =================================================== */}
         {/* MENÚ LATERAL */}
         {/* =================================================== */}
@@ -136,34 +127,23 @@ export default function Home() {
             padding: "20px",
           }}
         >
-
           {menu.map((item) => (
-
             <button
               key={item}
-
               onClick={() => {
-
                 setSeccion(item);
 
-                // Cierra cualquier modal de Mesas
-                // cuando se cambia a otra sección.
-
+                // Cerrar modal de mesas
+                // al cambiar de sección
                 if (item !== "Mesas") {
                   mesasEstado.cerrarModal();
                 }
-
               }}
-
               style={{
                 width: "100%",
-
                 padding: "15px",
-
                 marginBottom: "10px",
-
                 border: "none",
-
                 borderRadius: "8px",
 
                 background:
@@ -172,23 +152,15 @@ export default function Home() {
                     : "transparent",
 
                 color: "white",
-
                 textAlign: "left",
-
                 cursor: "pointer",
-
                 fontSize: "16px",
               }}
             >
-
               {iconos[item]} {item}
-
             </button>
-
           ))}
-
         </aside>
-
 
         {/* =================================================== */}
         {/* CONTENIDO PRINCIPAL */}
@@ -200,18 +172,13 @@ export default function Home() {
             padding: "30px",
           }}
         >
-
-
           {/* ================================================= */}
           {/* INICIO */}
           {/* ================================================= */}
 
           {seccion === "Inicio" && (
-
             <>
-
               <h2>🏠 Inicio</h2>
-
 
               {/* TARJETAS DEL DASHBOARD */}
 
@@ -227,8 +194,6 @@ export default function Home() {
                   marginTop: "25px",
                 }}
               >
-
-
                 {/* VENTAS DEL DÍA */}
 
                 <Tarjeta
@@ -237,12 +202,10 @@ export default function Home() {
                   icono="💰"
                 />
 
-
                 {/* MESAS ACTIVAS */}
 
                 <Tarjeta
                   titulo="Mesas activas"
-
                   valor={
                     mesas
                       .filter(
@@ -252,62 +215,47 @@ export default function Home() {
                       .length
                       .toString()
                   }
-
                   icono="🪑"
                 />
-
 
                 {/* PRODUCTOS */}
 
                 <Tarjeta
                   titulo="Productos"
-
                   valor={
                     inventarioEstado.resumen.totalProductos
                       .toString()
                   }
-
                   icono="🍺"
                 />
-
 
                 {/* INVENTARIO BAJO */}
 
                 <Tarjeta
                   titulo="Inventario bajo"
-
                   valor={
                     inventarioEstado.resumen.stockBajo
                       .toString()
                   }
-
                   icono="⚠️"
                 />
-
               </div>
-
 
               {/* BIENVENIDA */}
 
               <div
                 style={{
                   marginTop: "30px",
-
                   background: "white",
-
                   padding: "25px",
-
                   borderRadius: "12px",
-
                   boxShadow:
                     "0 2px 10px rgba(0,0,0,0.08)",
                 }}
               >
-
                 <h3>
                   Bienvenido a YO PLAY BEER 🍺
                 </h3>
-
 
                 <p
                   style={{
@@ -318,53 +266,37 @@ export default function Home() {
                   las ventas, mesas, inventario y reportes
                   del negocio.
                 </p>
-
               </div>
-
             </>
-
           )}
-
 
           {/* ================================================= */}
           {/* MESAS */}
           {/* ================================================= */}
 
           {seccion === "Mesas" && (
-
             <MesasModule
               estado={mesasEstado}
             />
-
           )}
-
 
           {/* ================================================= */}
           {/* VENTAS */}
           {/* ================================================= */}
 
           {seccion === "Ventas" && (
-
             <div
               style={{
                 background: "white",
-
                 padding: "30px",
-
                 borderRadius: "12px",
-
                 boxShadow:
                   "0 2px 10px rgba(0,0,0,0.08)",
               }}
             >
-
-              <h2>
-                💰 Ventas
-              </h2>
-
+              <h2>💰 Ventas</h2>
 
               {ventas.length === 0 ? (
-
                 <p
                   style={{
                     color: "#6b7280",
@@ -372,86 +304,59 @@ export default function Home() {
                 >
                   Todavía no hay ventas registradas.
                 </p>
-
               ) : (
-
                 <div>
-
                   {ventas.map((venta) => (
-
                     <div
                       key={venta.id}
-
                       style={{
                         display: "flex",
-
                         justifyContent:
                           "space-between",
-
                         padding: "15px",
-
                         borderBottom:
                           "1px solid #e5e7eb",
                       }}
                     >
-
                       <span>
                         🪑 Mesa {venta.mesaNumero}
                       </span>
 
-
                       <strong>
                         {formatoCOP(venta.total)}
                       </strong>
-
                     </div>
-
                   ))}
-
                 </div>
-
               )}
-
             </div>
-
           )}
-
 
           {/* ================================================= */}
           {/* INVENTARIO */}
           {/* ================================================= */}
 
           {seccion === "Inventario" && (
-
             <InventarioModule
               estado={inventarioEstado}
             />
-
           )}
-
 
           {/* ================================================= */}
           {/* REPORTES */}
           {/* ================================================= */}
 
           {seccion === "Reportes" && (
-
             <div
               style={{
                 background: "white",
-
                 padding: "30px",
-
                 borderRadius: "12px",
-
                 boxShadow:
                   "0 2px 10px rgba(0,0,0,0.08)",
               }}
             >
-
-              <h2>
-                📊 Reportes
-              </h2>
+              <h2>📊 Reportes</h2>
 
               <p
                 style={{
@@ -460,34 +365,24 @@ export default function Home() {
               >
                 Este módulo será desarrollado próximamente.
               </p>
-
             </div>
-
           )}
-
 
           {/* ================================================= */}
           {/* USUARIOS */}
           {/* ================================================= */}
 
           {seccion === "Usuarios" && (
-
             <div
               style={{
                 background: "white",
-
                 padding: "30px",
-
                 borderRadius: "12px",
-
                 boxShadow:
                   "0 2px 10px rgba(0,0,0,0.08)",
               }}
             >
-
-              <h2>
-                👥 Usuarios
-              </h2>
+              <h2>👥 Usuarios</h2>
 
               <p
                 style={{
@@ -496,15 +391,10 @@ export default function Home() {
               >
                 Este módulo será desarrollado próximamente.
               </p>
-
             </div>
-
           )}
-
         </section>
-
       </div>
-
     </main>
   );
 }
@@ -523,22 +413,16 @@ function Tarjeta({
   valor: string;
   icono: string;
 }) {
-
   return (
-
     <div
       style={{
         background: "white",
-
         padding: "20px",
-
         borderRadius: "12px",
-
         boxShadow:
           "0 2px 10px rgba(0,0,0,0.08)",
       }}
     >
-
       <div
         style={{
           fontSize: "30px",
@@ -547,17 +431,14 @@ function Tarjeta({
         {icono}
       </div>
 
-
       <p
         style={{
           color: "#6b7280",
-
           marginBottom: "5px",
         }}
       >
         {titulo}
       </p>
-
 
       <h2
         style={{
@@ -566,9 +447,6 @@ function Tarjeta({
       >
         {valor}
       </h2>
-
     </div>
-
   );
-
 }
