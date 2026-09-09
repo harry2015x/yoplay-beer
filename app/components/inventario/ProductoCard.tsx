@@ -1,15 +1,17 @@
-// ARCHIVO: app/components/inventario/ProductoCard.tsx
 "use client";
 
 import { useState } from "react";
+
 import {
   calcularEstadoStock,
   type ProductoInventario,
 } from "../../../types/inventario";
+
 import { formatoCOP } from "../../../lib/formato";
 
 type Props = {
   producto: ProductoInventario;
+
   onEntrada: (producto: ProductoInventario) => void;
   onSalida: (producto: ProductoInventario) => void;
   onAjustar: (producto: ProductoInventario) => void;
@@ -29,7 +31,13 @@ const ESTADO_TEXTO: Record<string, string> = {
   sin_stock: "Sin stock",
 };
 
-function Badge({ texto, color }: { texto: string; color: string }) {
+function Badge({
+  texto,
+  color,
+}: {
+  texto: string;
+  color: string;
+}) {
   return (
     <span
       style={{
@@ -61,6 +69,7 @@ function BotonAccion({
   ariaLabel: string;
 }) {
   const [hover, setHover] = useState(false);
+
   return (
     <button
       type="button"
@@ -80,12 +89,23 @@ function BotonAccion({
         fontSize: 12,
         fontWeight: 600,
         cursor: "pointer",
-        filter: hover ? "brightness(1.07)" : "brightness(1)",
-        transition: "filter 120ms ease, transform 120ms ease",
+        filter: hover
+          ? "brightness(1.07)"
+          : "brightness(1)",
+        transform: hover
+          ? "translateY(-1px)"
+          : "translateY(0)",
+        transition:
+          "filter 120ms ease, transform 120ms ease",
       }}
     >
-      <span aria-hidden="true">{icono}</span>
-      <span>{etiqueta}</span>
+      <span aria-hidden="true">
+        {icono}
+      </span>
+
+      <span>
+        {etiqueta}
+      </span>
     </button>
   );
 }
@@ -99,143 +119,479 @@ export default function ProductoCard({
   onEliminar,
 }: Props) {
   const [hover, setHover] = useState(false);
-  const estado = calcularEstadoStock(producto);
+
+  // Controla si la imagen falla.
+  // Si la URL está dañada, mostramos el placeholder.
+  const [imagenError, setImagenError] =
+    useState(false);
+
+  const estado =
+    calcularEstadoStock(producto);
+
+  const tieneImagen =
+    producto.imagenUrl &&
+    producto.imagenUrl.trim() !== "" &&
+    !imagenError;
 
   return (
     <div
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      onMouseEnter={() =>
+        setHover(true)
+      }
+      onMouseLeave={() =>
+        setHover(false)
+      }
       style={{
         background: "white",
         borderRadius: 14,
         padding: 18,
+
         boxShadow: hover
-          ? "0 10px 24px rgba(0,0,0,0.1)"
+          ? "0 10px 24px rgba(0,0,0,0.10)"
           : "0 2px 10px rgba(0,0,0,0.06)",
-        transform: hover ? "translateY(-2px)" : "translateY(0)",
-        transition: "transform 160ms ease, box-shadow 160ms ease",
+
+        transform: hover
+          ? "translateY(-2px)"
+          : "translateY(0)",
+
+        transition:
+          "transform 160ms ease, box-shadow 160ms ease",
+
         display: "flex",
+
         flexWrap: "wrap",
+
         alignItems: "center",
+
         gap: 16,
+
+        border:
+          estado === "sin_stock"
+            ? "1px solid #fecaca"
+            : estado === "bajo"
+            ? "1px solid #fde68a"
+            : "1px solid transparent",
       }}
     >
-      {/* Indicador de stock */}
+      {/* ============================================== */}
+      {/* IMAGEN DEL PRODUCTO */}
+      {/* ============================================== */}
+
+      <div
+        style={{
+          width: 82,
+          height: 82,
+
+          borderRadius: 12,
+
+          overflow: "hidden",
+
+          flexShrink: 0,
+
+          background: "#f1f5f9",
+
+          border: "1px solid #e5e7eb",
+
+          display: "flex",
+
+          alignItems: "center",
+
+          justifyContent: "center",
+        }}
+      >
+        {tieneImagen ? (
+          <img
+            src={producto.imagenUrl ?? ""}
+            alt={producto.nombre}
+            onError={() =>
+              setImagenError(true)
+            }
+            style={{
+              width: "100%",
+              height: "100%",
+
+              objectFit: "cover",
+
+              display: "block",
+            }}
+          />
+        ) : (
+          <div
+            title="Producto sin imagen"
+            style={{
+              fontSize: 34,
+
+              display: "flex",
+
+              alignItems: "center",
+
+              justifyContent: "center",
+
+              width: "100%",
+
+              height: "100%",
+            }}
+          >
+            🍺
+          </div>
+        )}
+      </div>
+
+      {/* ============================================== */}
+      {/* INDICADOR DE STOCK */}
+      {/* ============================================== */}
+
       <div
         aria-hidden="true"
+        title={ESTADO_TEXTO[estado]}
         style={{
           width: 10,
           height: 10,
+
           borderRadius: "50%",
-          background: ESTADO_COLOR[estado],
+
+          background:
+            ESTADO_COLOR[estado],
+
           flexShrink: 0,
+
+          boxShadow:
+            estado === "normal"
+              ? "0 0 0 4px rgba(22,163,74,0.10)"
+              : estado === "bajo"
+              ? "0 0 0 4px rgba(245,158,11,0.10)"
+              : "0 0 0 4px rgba(239,68,68,0.10)",
         }}
       />
 
-      {/* Nombre, categoría y badges */}
-      <div style={{ flex: "1 1 220px", minWidth: 200 }}>
+      {/* ============================================== */}
+      {/* INFORMACIÓN DEL PRODUCTO */}
+      {/* ============================================== */}
+
+      <div
+        style={{
+          flex: "1 1 220px",
+
+          minWidth: 200,
+        }}
+      >
         <div
           style={{
             display: "flex",
+
             alignItems: "center",
+
             gap: 8,
+
             flexWrap: "wrap",
-            marginBottom: 4,
+
+            marginBottom: 5,
           }}
         >
-          <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>
+          <span
+            style={{
+              fontSize: 16,
+
+              fontWeight: 700,
+
+              color: "#111827",
+            }}
+          >
             {producto.nombre}
           </span>
+
           <Badge
-            texto={producto.activo ? "Activo" : "Inactivo"}
-            color={producto.activo ? "#16a34a" : "#6b7280"}
+            texto={
+              producto.activo
+                ? "Activo"
+                : "Inactivo"
+            }
+            color={
+              producto.activo
+                ? "#16a34a"
+                : "#6b7280"
+            }
           />
+
           {estado !== "normal" && (
-            <Badge texto={ESTADO_TEXTO[estado]} color={ESTADO_COLOR[estado]} />
+            <Badge
+              texto={
+                ESTADO_TEXTO[estado]
+              }
+              color={
+                ESTADO_COLOR[estado]
+              }
+            />
           )}
         </div>
-        <div style={{ fontSize: 13, color: "#6b7280" }}>
-          {producto.categoria ?? "Sin categoría"}
+
+        {/* Categoría */}
+
+        <div
+          style={{
+            fontSize: 13,
+
+            color: "#6b7280",
+
+            marginBottom:
+              producto.descripcion
+                ? 4
+                : 0,
+          }}
+        >
+          🏷️{" "}
+          {producto.categoria ??
+            "Sin categoría"}
         </div>
+
+        {/* Descripción */}
+
+        {producto.descripcion && (
+          <div
+            style={{
+              fontSize: 12,
+
+              color: "#9ca3af",
+
+              maxWidth: 300,
+
+              overflow: "hidden",
+
+              textOverflow:
+                "ellipsis",
+
+              whiteSpace:
+                "nowrap",
+            }}
+            title={
+              producto.descripcion
+            }
+          >
+            {producto.descripcion}
+          </div>
+        )}
       </div>
 
-      {/* Stock */}
-      <div style={{ minWidth: 110 }}>
-        <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 2 }}>
+      {/* ============================================== */}
+      {/* STOCK */}
+      {/* ============================================== */}
+
+      <div
+        style={{
+          minWidth: 115,
+
+          paddingLeft: 8,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 11,
+
+            color: "#6b7280",
+
+            marginBottom: 3,
+
+            fontWeight: 600,
+
+            textTransform:
+              "uppercase",
+          }}
+        >
           Stock
         </div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>
-          {producto.stock} {producto.unidad}
+
+        <div
+          style={{
+            fontSize: 17,
+
+            fontWeight: 700,
+
+            color:
+              estado === "sin_stock"
+                ? "#dc2626"
+                : estado === "bajo"
+                ? "#d97706"
+                : "#111827",
+          }}
+        >
+          {producto.stock}{" "}
+
+          <span
+            style={{
+              fontSize: 12,
+
+              fontWeight: 500,
+            }}
+          >
+            {producto.unidad}
+          </span>
         </div>
-        <div style={{ fontSize: 11, color: "#6b7280" }}>
-          Mínimo: {producto.stockMinimo}
+
+        <div
+          style={{
+            fontSize: 11,
+
+            color: "#6b7280",
+
+            marginTop: 2,
+          }}
+        >
+          Mínimo:{" "}
+          {producto.stockMinimo}
         </div>
       </div>
 
-      {/* Precios */}
-      <div style={{ minWidth: 120 }}>
-        <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 2 }}>
-          Precio compra
+      {/* ============================================== */}
+      {/* PRECIO DE COMPRA */}
+      {/* ============================================== */}
+
+      <div
+        style={{
+          minWidth: 125,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 11,
+
+            color: "#6b7280",
+
+            marginBottom: 3,
+
+            fontWeight: 600,
+
+            textTransform:
+              "uppercase",
+          }}
+        >
+          Compra
         </div>
-        <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>
+
+        <div
+          style={{
+            fontSize: 14,
+
+            fontWeight: 600,
+
+            color: "#374151",
+          }}
+        >
           {producto.precioCompra !== null
-            ? formatoCOP(producto.precioCompra)
-            : "—"}
-        </div>
-      </div>
-      <div style={{ minWidth: 120 }}>
-        <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 2 }}>
-          Precio venta
-        </div>
-        <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>
-          {producto.precioVenta !== null
-            ? formatoCOP(producto.precioVenta)
+            ? formatoCOP(
+                producto.precioCompra
+              )
             : "—"}
         </div>
       </div>
 
-      {/* Acciones */}
+      {/* ============================================== */}
+      {/* PRECIO DE VENTA */}
+      {/* ============================================== */}
+
+      <div
+        style={{
+          minWidth: 125,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 11,
+
+            color: "#6b7280",
+
+            marginBottom: 3,
+
+            fontWeight: 600,
+
+            textTransform:
+              "uppercase",
+          }}
+        >
+          Venta
+        </div>
+
+        <div
+          style={{
+            fontSize: 15,
+
+            fontWeight: 700,
+
+            color: "#16a34a",
+          }}
+        >
+          {producto.precioVenta !== null
+            ? formatoCOP(
+                producto.precioVenta
+              )
+            : "—"}
+        </div>
+      </div>
+
+      {/* ============================================== */}
+      {/* ACCIONES */}
+      {/* ============================================== */}
+
       <div
         style={{
           display: "flex",
+
           flexWrap: "wrap",
+
           gap: 8,
+
           marginLeft: "auto",
+
+          justifyContent:
+            "flex-end",
         }}
       >
         <BotonAccion
           etiqueta="Entrada"
           icono="📥"
           color="#16a34a"
-          onClick={() => onEntrada(producto)}
+          onClick={() =>
+            onEntrada(producto)
+          }
           ariaLabel={`Registrar entrada para ${producto.nombre}`}
         />
+
         <BotonAccion
           etiqueta="Salida"
           icono="➖"
           color="#ef4444"
-          onClick={() => onSalida(producto)}
+          onClick={() =>
+            onSalida(producto)
+          }
           ariaLabel={`Registrar salida para ${producto.nombre}`}
         />
+
         <BotonAccion
           etiqueta="Ajustar"
           icono="⚙️"
           color="#2563eb"
-          onClick={() => onAjustar(producto)}
+          onClick={() =>
+            onAjustar(producto)
+          }
           ariaLabel={`Ajustar stock de ${producto.nombre}`}
         />
+
         <BotonAccion
           etiqueta="Editar"
           icono="✏️"
           color="#172131"
-          onClick={() => onEditar(producto)}
+          onClick={() =>
+            onEditar(producto)
+          }
           ariaLabel={`Editar ${producto.nombre}`}
         />
+
         <BotonAccion
           etiqueta="Eliminar"
           icono="🗑️"
           color="#ef4444"
-          onClick={() => onEliminar(producto)}
+          onClick={() =>
+            onEliminar(producto)
+          }
           ariaLabel={`Eliminar ${producto.nombre}`}
         />
       </div>
