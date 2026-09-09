@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { supabase } from "../lib/supabase";
 
@@ -21,23 +17,18 @@ import {
  * Hook principal para administrar:
  *
  * - Mesas
- * - Productos
  * - Pedidos
  * - Ventas
+ *
+ * usuarioId:
+ * ID del usuario autenticado que está realizando
+ * las ventas.
  */
-export function useMesas() {
-  // =====================================================
-  // ESTADOS
-  // =====================================================
-
+export function useMesas(
+  usuarioId: string | null
+) {
   const [mesas, setMesas] =
     useState<Mesa[]>([]);
-
-  /**
-   * Productos reales cargados desde Inventario.
-   */
-  const [productos, setProductos] =
-    useState<Producto[]>([]);
 
   const [ventas, setVentas] =
     useState<Venta[]>([]);
@@ -45,30 +36,20 @@ export function useMesas() {
   const [cargandoMesas, setCargandoMesas] =
     useState(true);
 
-  const [
-    cargandoProductos,
-    setCargandoProductos,
-  ] = useState(true);
-
-  const [
-    errorMesas,
-    setErrorMesas,
-  ] = useState<string | null>(null);
+  const [errorMesas, setErrorMesas] =
+    useState<string | null>(null);
 
   const [
     mesaSeleccionadaId,
     setMesaSeleccionadaId,
   ] = useState<number | null>(null);
 
-  const [
-    notificacion,
-    setNotificacion,
-  ] =
+  const [notificacion, setNotificacion] =
     useState<Notificacion | null>(null);
 
-  // =====================================================
+  // ============================================================
   // NOTIFICACIONES
-  // =====================================================
+  // ============================================================
 
   function mostrarNotificacion(
     tipo: Notificacion["tipo"],
@@ -80,9 +61,10 @@ export function useMesas() {
     });
   }
 
-  /**
-   * Cierra automáticamente las notificaciones.
-   */
+  // ============================================================
+  // CERRAR AUTOMÁTICAMENTE NOTIFICACIONES
+  // ============================================================
+
   useEffect(() => {
     if (!notificacion) return;
 
@@ -90,103 +72,24 @@ export function useMesas() {
       setNotificacion(null);
     }, 4000);
 
-    return () =>
+    return () => {
       clearTimeout(temporizador);
+    };
   }, [notificacion]);
 
-  // =====================================================
-  // CARGAR PRODUCTOS DESDE INVENTARIO
-  // =====================================================
-
-  /**
-   * Carga los productos reales desde Supabase.
-   *
-   * Solo se muestran:
-   *
-   * - Productos activos.
-   * - Productos con precio de venta.
-   */
-  async function cargarProductos() {
-    setCargandoProductos(true);
-
-    const { data, error } =
-      await supabase
-        .from("productos")
-        .select(`
-          id,
-          nombre,
-          categoria,
-          precio_venta,
-          imagen_url,
-          activo
-        `)
-        .eq("activo", true)
-        .order("nombre");
-
-    if (error) {
-      console.error(
-        "Error cargando productos:",
-        error
-      );
-
-      mostrarNotificacion(
-        "error",
-        "No se pudieron cargar los productos del inventario."
-      );
-
-      setCargandoProductos(false);
-
-      return;
-    }
-
-    /**
-     * Convertimos los datos de Supabase
-     * al tipo Producto utilizado por Mesas.
-     */
-    const productosCargados: Producto[] =
-      (data ?? [])
-        .filter((fila) => {
-          return (
-            fila.precio_venta !== null &&
-            Number(fila.precio_venta) > 0
-          );
-        })
-        .map((fila) => ({
-          id: Number(fila.id),
-
-          nombre:
-            fila.nombre ?? "Sin nombre",
-
-          precio: Number(
-            fila.precio_venta
-          ),
-
-          imagenUrl:
-            fila.imagen_url ?? null,
-
-          categoria:
-            fila.categoria ?? null,
-        }));
-
-    setProductos(productosCargados);
-
-    setCargandoProductos(false);
-  }
-
-  // =====================================================
+  // ============================================================
   // CARGAR MESAS DESDE SUPABASE
-  // =====================================================
+  // ============================================================
 
   async function cargarMesas() {
     setCargandoMesas(true);
 
     setErrorMesas(null);
 
-    const { data, error } =
-      await supabase
-        .from("mesas")
-        .select("*")
-        .order("numero");
+    const { data, error } = await supabase
+      .from("mesas")
+      .select("*")
+      .order("numero");
 
     if (error) {
       console.error(
@@ -203,11 +106,6 @@ export function useMesas() {
       return;
     }
 
-    /**
-     * Conservamos los productos locales
-     * de las mesas mientras la mesa
-     * permanece abierta.
-     */
     setMesas((anteriores) => {
       const porId = new Map(
         anteriores.map((mesa) => [
@@ -216,56 +114,51 @@ export function useMesas() {
         ])
       );
 
-      return (data ?? []).map(
-        (fila): Mesa => {
-          const anterior =
-            porId.get(fila.id);
+      return (data ?? []).map((fila) => {
+        const anterior =
+          porId.get(fila.id);
 
-          const estadoBd = String(
-            fila.estado ?? ""
-          ).toLowerCase();
+        const estadoBd = String(
+          fila.estado ?? ""
+        ).toLowerCase();
 
-          return {
-            id: Number(fila.id),
+        return {
+          id: fila.id,
 
-            numero: Number(
-              fila.numero
-            ),
+          numero: fila.numero,
 
-            estado:
-              estadoBd === "ocupada"
-                ? "Ocupada"
-                : "Libre",
+          estado:
+            estadoBd === "ocupada"
+              ? "Ocupada"
+              : "Libre",
 
-            productos:
-              anterior?.productos ?? [],
+          productos:
+            anterior?.productos ?? [],
 
-            total:
-              anterior?.total ?? 0,
+          total:
+            anterior?.total ?? 0,
 
-            abiertaDesde:
-              anterior?.abiertaDesde ??
-              null,
-          };
-        }
-      );
+          abiertaDesde:
+            anterior?.abiertaDesde ??
+            null,
+        };
+      });
     });
 
     setCargandoMesas(false);
   }
 
-  // =====================================================
+  // ============================================================
   // CARGAR VENTAS DESDE SUPABASE
-  // =====================================================
+  // ============================================================
 
   async function cargarVentas() {
-    const { data, error } =
-      await supabase
-        .from("ventas")
-        .select("*")
-        .order("id", {
-          ascending: true,
-        });
+    const { data, error } = await supabase
+      .from("ventas")
+      .select("*")
+      .order("created_at", {
+        ascending: false,
+      });
 
     if (error) {
       console.error(
@@ -283,36 +176,26 @@ export function useMesas() {
 
     const ventasCargadas: Venta[] =
       (data ?? []).map((fila) => ({
-        id: Number(fila.id),
+        id: fila.id,
 
-        mesaId: Number(
-          fila.mesa_id
-        ),
+        mesaId: fila.mesa_id,
 
-        /**
-         * Temporalmente usamos mesa_id.
-         * Más abajo se reemplaza por
-         * el número real de la mesa.
-         */
-        mesaNumero: Number(
-          fila.mesa_id
-        ),
+        mesaNumero: fila.mesa_id,
 
-        total: Number(
-          fila.total
-        ),
+        usuarioId:
+          fila.usuario_id ?? null,
+
+        total: Number(fila.total),
 
         fecha: fila.created_at
-          ? new Date(
-              fila.created_at
-            )
+          ? new Date(fila.created_at)
           : new Date(),
       }));
 
-    /**
-     * Obtenemos el número real
-     * de cada mesa.
-     */
+    // ==========================================================
+    // OBTENER NÚMERO REAL DE LAS MESAS
+    // ==========================================================
+
     const {
       data: mesasData,
       error: errorMesas,
@@ -320,50 +203,38 @@ export function useMesas() {
       .from("mesas")
       .select("id, numero");
 
-    if (
-      !errorMesas &&
-      mesasData
-    ) {
-      const numerosMesas =
-        new Map(
-          mesasData.map(
-            (mesa) => [
-              Number(mesa.id),
-              Number(mesa.numero),
-            ]
-          )
-        );
+    if (!errorMesas && mesasData) {
+      const numerosMesas = new Map(
+        mesasData.map((mesa) => [
+          mesa.id,
+          mesa.numero,
+        ])
+      );
 
       setVentas(
-        ventasCargadas.map(
-          (venta) => ({
-            ...venta,
+        ventasCargadas.map((venta) => ({
+          ...venta,
 
-            mesaNumero:
-              numerosMesas.get(
-                venta.mesaId
-              ) ??
-              venta.mesaId,
-          })
-        )
+          mesaNumero:
+            numerosMesas.get(
+              venta.mesaId
+            ) ?? venta.mesaId,
+        }))
       );
     } else {
-      setVentas(
-        ventasCargadas
-      );
+      setVentas(ventasCargadas);
     }
   }
 
-  // =====================================================
-  // CARGAR DATOS AL INICIAR
-  // =====================================================
+  // ============================================================
+  // CARGAR DATOS
+  // ============================================================
 
   useEffect(() => {
     async function cargarDatos() {
       await Promise.all([
         cargarMesas(),
         cargarVentas(),
-        cargarProductos(),
       ]);
     }
 
@@ -372,20 +243,19 @@ export function useMesas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // =====================================================
+  // ============================================================
   // ABRIR MESA
-  // =====================================================
+  // ============================================================
 
   async function abrirMesa(
     id: number
   ) {
-    const { error } =
-      await supabase
-        .from("mesas")
-        .update({
-          estado: "ocupada",
-        })
-        .eq("id", id);
+    const { error } = await supabase
+      .from("mesas")
+      .update({
+        estado: "ocupada",
+      })
+      .eq("id", id);
 
     if (error) {
       console.error(
@@ -416,16 +286,12 @@ export function useMesas() {
       )
     );
 
-    /**
-     * Abrimos automáticamente
-     * el formulario de la mesa.
-     */
     setMesaSeleccionadaId(id);
   }
 
-  // =====================================================
+  // ============================================================
   // SELECCIONAR MESA
-  // =====================================================
+  // ============================================================
 
   function seleccionarMesa(
     id: number
@@ -433,17 +299,17 @@ export function useMesas() {
     setMesaSeleccionadaId(id);
   }
 
-  // =====================================================
+  // ============================================================
   // CERRAR MODAL
-  // =====================================================
+  // ============================================================
 
   function cerrarModal() {
     setMesaSeleccionadaId(null);
   }
 
-  // =====================================================
+  // ============================================================
   // AGREGAR PRODUCTO
-  // =====================================================
+  // ============================================================
 
   function agregarProducto(
     producto: Producto
@@ -471,7 +337,8 @@ export function useMesas() {
           );
 
         const nuevosProductos:
-          ItemPedido[] = existente
+          ItemPedido[] =
+          existente
             ? mesa.productos.map(
                 (item) =>
                   item.productoId ===
@@ -498,10 +365,13 @@ export function useMesas() {
                   precio:
                     producto.precio,
 
-                    cantidad: 1,
-                    imagenUrl: producto.imagenUrl ?? null,
-                  },
-                ];
+                  cantidad: 1,
+
+                  imagenUrl:
+                    producto.imagenUrl ??
+                    null,
+                },
+              ];
 
         return {
           ...mesa,
@@ -518,9 +388,9 @@ export function useMesas() {
     );
   }
 
-  // =====================================================
+  // ============================================================
   // AUMENTAR CANTIDAD
-  // =====================================================
+  // ============================================================
 
   function aumentarCantidad(
     productoId: number
@@ -549,8 +419,7 @@ export function useMesas() {
                     ...item,
 
                     cantidad:
-                      item.cantidad +
-                      1,
+                      item.cantidad + 1,
                   }
                 : item
           );
@@ -570,9 +439,9 @@ export function useMesas() {
     );
   }
 
-  // =====================================================
+  // ============================================================
   // DISMINUIR CANTIDAD
-  // =====================================================
+  // ============================================================
 
   function disminuirCantidad(
     productoId: number
@@ -626,9 +495,9 @@ export function useMesas() {
     );
   }
 
-  // =====================================================
+  // ============================================================
   // ELIMINAR PRODUCTO
-  // =====================================================
+  // ============================================================
 
   function eliminarProducto(
     productoId: number
@@ -670,13 +539,31 @@ export function useMesas() {
     );
   }
 
-  // =====================================================
+  // ============================================================
   // CERRAR MESA Y REGISTRAR VENTA
-  // =====================================================
+  // ============================================================
 
   async function cerrarMesa(
     id: number
   ): Promise<boolean> {
+
+    // ==========================================================
+    // VERIFICAR USUARIO AUTENTICADO
+    // ==========================================================
+
+    if (!usuarioId) {
+      mostrarNotificacion(
+        "error",
+        "No hay un usuario autenticado. No se puede registrar la venta."
+      );
+
+      return false;
+    }
+
+    // ==========================================================
+    // BUSCAR MESA
+    // ==========================================================
+
     const mesa =
       mesas.find(
         (m) => m.id === id
@@ -685,6 +572,10 @@ export function useMesas() {
     if (!mesa) {
       return false;
     }
+
+    // ==========================================================
+    // VALIDAR PRODUCTOS
+    // ==========================================================
 
     if (
       mesa.productos.length === 0 ||
@@ -698,9 +589,9 @@ export function useMesas() {
       return false;
     }
 
-    // =================================================
+    // ==========================================================
     // REGISTRAR VENTA
-    // =================================================
+    // ==========================================================
 
     const {
       data: ventaCreada,
@@ -711,13 +602,26 @@ export function useMesas() {
         {
           mesa_id: mesa.id,
 
-          total: mesa.total,
+          // ====================================================
+          // USUARIO QUE REALIZÓ LA VENTA
+          // ====================================================
 
-          estado: "cerrada",
+          usuario_id:
+            usuarioId,
+
+          total:
+            mesa.total,
+
+          estado:
+            "cerrada",
         },
       ])
       .select()
       .single();
+
+    // ==========================================================
+    // ERROR AL REGISTRAR VENTA
+    // ==========================================================
 
     if (errorVenta) {
       console.error(
@@ -733,9 +637,9 @@ export function useMesas() {
       return false;
     }
 
-    // =================================================
-    // LIBERAR MESA
-    // =================================================
+    // ==========================================================
+    // LIBERAR MESA EN SUPABASE
+    // ==========================================================
 
     const {
       error: errorMesa,
@@ -763,23 +667,30 @@ export function useMesas() {
       return false;
     }
 
-    // =================================================
+    // ==========================================================
     // AGREGAR VENTA AL ESTADO LOCAL
-    // =================================================
+    // ==========================================================
 
     setVentas((prev) => [
-      ...prev,
-
       {
-        id: ventaCreada.id,
+        id:
+          ventaCreada.id,
 
-        mesaId: mesa.id,
+        mesaId:
+          mesa.id,
 
         mesaNumero:
           mesa.numero,
 
+        usuarioId:
+          ventaCreada.usuario_id ??
+          usuarioId,
+
         total:
-          Number(mesa.total),
+          Number(
+            ventaCreada.total ??
+            mesa.total
+          ),
 
         fecha:
           ventaCreada.created_at
@@ -788,11 +699,13 @@ export function useMesas() {
               )
             : new Date(),
       },
+
+      ...prev,
     ]);
 
-    // =================================================
+    // ==========================================================
     // LIBERAR MESA LOCALMENTE
-    // =================================================
+    // ==========================================================
 
     setMesas((prev) =>
       prev.map((m) =>
@@ -800,7 +713,8 @@ export function useMesas() {
           ? {
               ...m,
 
-              estado: "Libre",
+              estado:
+                "Libre",
 
               total: 0,
 
@@ -813,7 +727,15 @@ export function useMesas() {
       )
     );
 
+    // ==========================================================
+    // CERRAR MESA SELECCIONADA
+    // ==========================================================
+
     setMesaSeleccionadaId(null);
+
+    // ==========================================================
+    // NOTIFICACIÓN
+    // ==========================================================
 
     mostrarNotificacion(
       "success",
@@ -823,127 +745,164 @@ export function useMesas() {
     return true;
   }
 
-  // =====================================================
+  // ============================================================
   // MESA ACTUAL
-  // =====================================================
+  // ============================================================
 
-  const mesaActual = useMemo(
-    () =>
-      mesas.find(
-        (mesa) =>
-          mesa.id ===
-          mesaSeleccionadaId
-      ) ?? null,
+  const mesaActual =
+    useMemo(
+      () =>
+        mesas.find(
+          (mesa) =>
+            mesa.id ===
+            mesaSeleccionadaId
+        ) ?? null,
 
-    [
-      mesas,
-      mesaSeleccionadaId,
-    ]
-  );
+      [
+        mesas,
+        mesaSeleccionadaId,
+      ]
+    );
 
-  // =====================================================
-  // TOTAL DE VENTAS
-  // =====================================================
+  // ============================================================
+  // VERIFICAR SI UNA FECHA ES HOY
+  // ============================================================
 
-  const ventasDelDia = useMemo(
-    () =>
-      ventas.reduce(
-        (total, venta) =>
-          total + venta.total,
-        0
-      ),
+  function esFechaDeHoy(
+    fecha: Date
+  ): boolean {
 
-    [ventas]
-  );
+    const hoy =
+      new Date();
 
-  // =====================================================
+    return (
+      fecha.getFullYear() ===
+        hoy.getFullYear() &&
+      fecha.getMonth() ===
+        hoy.getMonth() &&
+      fecha.getDate() ===
+        hoy.getDate()
+    );
+  }
+
+  // ============================================================
+  // VENTAS DE HOY DEL USUARIO ACTUAL
+  // ============================================================
+
+  const ventasDelDia =
+    useMemo(
+      () =>
+        ventas
+          .filter(
+            (venta) =>
+              esFechaDeHoy(
+                venta.fecha
+              ) &&
+              venta.usuarioId ===
+                usuarioId
+          )
+          .reduce(
+            (
+              total,
+              venta
+            ) =>
+              total +
+              venta.total,
+
+            0
+          ),
+
+      [
+        ventas,
+        usuarioId,
+      ]
+    );
+
+  // ============================================================
   // RESUMEN DE MESAS
-  // =====================================================
+  // ============================================================
 
-  const resumen = useMemo(() => {
-    const libres =
-      mesas.filter(
-        (mesa) =>
-          mesa.estado === "Libre"
-      ).length;
+  const resumen =
+    useMemo(() => {
 
-    const ocupadas =
-      mesas.filter(
-        (mesa) =>
-          mesa.estado === "Ocupada"
-      ).length;
+      const libres =
+        mesas.filter(
+          (mesa) =>
+            mesa.estado ===
+            "Libre"
+        ).length;
 
-    const ventasActivas =
-      mesas.filter(
-        (mesa) =>
-          mesa.estado ===
-            "Ocupada" &&
-          mesa.total > 0
-      ).length;
+      const ocupadas =
+        mesas.filter(
+          (mesa) =>
+            mesa.estado ===
+            "Ocupada"
+        ).length;
 
-    return {
-      total:
-        mesas.length,
+      const ventasActivas =
+        mesas.filter(
+          (mesa) =>
+            mesa.estado ===
+              "Ocupada" &&
+            mesa.total > 0
+        ).length;
 
-      libres,
+      return {
+        total:
+          mesas.length,
 
-      ocupadas,
+        libres,
 
-      ventasActivas,
-    };
-  }, [mesas]);
+        ocupadas,
 
-  // =====================================================
+        ventasActivas,
+      };
+
+    }, [mesas]);
+
+  // ============================================================
   // RETURN
-  // =====================================================
+  // ============================================================
 
   return {
-    // Mesas
+
+    // ==========================================================
+    // ESTADO
+    // ==========================================================
+
     mesas,
 
-    // Productos reales del inventario
-    productos,
-
-    // Ventas
     ventas,
 
     ventasDelDia,
 
-    // Resumen
     resumen,
 
-    // Cargas
     cargandoMesas,
 
-    cargandoProductos,
-
-    // Errores
     errorMesas,
 
-    // Mesa actual
     mesaActual,
 
-    // Notificación
     notificacion,
+
+    // ==========================================================
+    // ACCIONES
+    // ==========================================================
 
     cerrarNotificacion: () =>
       setNotificacion(null),
 
-    // Carga de datos
     cargarMesas,
 
     cargarVentas,
 
-    cargarProductos,
-
-    // Mesas
     abrirMesa,
 
     seleccionarMesa,
 
     cerrarModal,
 
-    // Pedido
     agregarProducto,
 
     aumentarCantidad,
@@ -952,10 +911,15 @@ export function useMesas() {
 
     eliminarProducto,
 
-    // Venta
     cerrarMesa,
   };
 }
 
+// ============================================================
+// TIPO DEL RESULTADO
+// ============================================================
+
 export type UseMesasResult =
-  ReturnType<typeof useMesas>;
+  ReturnType<
+    typeof useMesas
+  >;

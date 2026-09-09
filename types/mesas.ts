@@ -31,9 +31,16 @@ export type Mesa = {
 
 export type Venta = {
   id: number;
+
   mesaId: number;
+
   mesaNumero: number;
+
+  // Usuario que realizó la venta
+  usuarioId: string | null;
+
   total: number;
+
   fecha: Date;
 };
 
