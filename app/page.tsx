@@ -12,6 +12,7 @@ import Login from "./components/auth/Login";
 import MesasModule from "./components/mesas/MesasModule";
 import InventarioModule from "./components/inventario/InventarioModule";
 import UsuariosModule from "./components/usuarios/UsuariosModule";
+import VentasModule from "./components/ventas/VentasModule";
 
 export default function Home() {
   const [seccion, setSeccion] = useState("Inicio");
@@ -142,9 +143,6 @@ export default function Home() {
     - Mesas
     - Ventas
     - Inventario
-
-    Posteriormente vamos a restringir
-    la edición dentro de Inventario.
   */
 
   const menu = esAdministrador
@@ -382,13 +380,9 @@ export default function Home() {
               }}
               style={{
                 width: "100%",
-
                 padding: "15px",
-
                 marginBottom: "10px",
-
                 border: "none",
-
                 borderRadius: "8px",
 
                 background:
@@ -565,99 +559,11 @@ export default function Home() {
           {/* ================================================= */}
 
           {seccion === "Ventas" && (
-            <div
-              style={{
-                background: "white",
-                padding: "30px",
-                borderRadius: "12px",
-                boxShadow:
-                  "0 2px 10px rgba(0,0,0,0.08)",
-              }}
-            >
-              <h2>💰 Ventas</h2>
-
-              <p
-                style={{
-                  color: "#6b7280",
-                  marginBottom: "25px",
-                }}
-              >
-                Registro de ventas realizadas.
-              </p>
-
-              {ventas.length === 0 ? (
-                <p
-                  style={{
-                    color: "#6b7280",
-                  }}
-                >
-                  Todavía no hay ventas registradas.
-                </p>
-              ) : (
-                <div>
-                  {ventas.map((venta) => (
-                    <div
-                      key={venta.id}
-                      style={{
-                        display: "flex",
-
-                        justifyContent:
-                          "space-between",
-
-                        alignItems: "center",
-
-                        padding: "15px",
-
-                        borderBottom:
-                          "1px solid #e5e7eb",
-                      }}
-                    >
-                      <div>
-                        <strong>
-                          🪑 Mesa {venta.mesaNumero}
-                        </strong>
-
-                        <div
-                          style={{
-                            fontSize: "12px",
-                            color: "#6b7280",
-                            marginTop: "4px",
-                          }}
-                        >
-                          Venta registrada
-                        </div>
-                      </div>
-
-                      <strong
-                        style={{
-                          color: "#16a34a",
-                        }}
-                      >
-                        {formatoCOP(venta.total)}
-                      </strong>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* IMPORTANTE */}
-
-              <div
-                style={{
-                  marginTop: "25px",
-                  padding: "14px",
-                  borderRadius: "8px",
-                  background: "#eff6ff",
-                  color: "#1e40af",
-                  fontSize: "13px",
-                }}
-              >
-                ℹ️ Las ventas registradas permanecerán
-                en el sistema. Posteriormente vamos a
-                asociar cada venta con el usuario que
-                realizó la venta.
-              </div>
-            </div>
+            <VentasModule
+              ventas={ventas}
+              perfilActual={perfil}
+              esAdministrador={esAdministrador}
+            />
           )}
 
           {/* ================================================= */}
