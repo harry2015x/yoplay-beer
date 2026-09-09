@@ -11,6 +11,7 @@ import { formatoCOP } from "../types/mesas";
 import Login from "./components/auth/Login";
 import MesasModule from "./components/mesas/MesasModule";
 import InventarioModule from "./components/inventario/InventarioModule";
+import UsuariosModule from "./components/usuarios/UsuariosModule";
 
 export default function Home() {
   const [seccion, setSeccion] = useState("Inicio");
@@ -703,43 +704,9 @@ export default function Home() {
 
           {seccion === "Usuarios" &&
             esAdministrador && (
-              <div
-                style={{
-                  background: "white",
-                  padding: "30px",
-                  borderRadius: "12px",
-                  boxShadow:
-                    "0 2px 10px rgba(0,0,0,0.08)",
-                }}
-              >
-                <h2>👥 Usuarios</h2>
-
-                <p
-                  style={{
-                    color: "#6b7280",
-                  }}
-                >
-                  Este módulo será desarrollado
-                  próximamente.
-                </p>
-
-                <div
-                  style={{
-                    marginTop: "20px",
-                    padding: "15px",
-                    background: "#fef3c7",
-                    borderRadius: "8px",
-                    color: "#92400e",
-                    fontSize: "14px",
-                  }}
-                >
-                  👑 Solo los usuarios con rol
-                  <strong>
-                    {" "}Administrador
-                  </strong>{" "}
-                  podrán crear y gestionar usuarios.
-                </div>
-              </div>
+              <UsuariosModule
+                perfilActual={perfil}
+              />
             )}
         </section>
       </div>
