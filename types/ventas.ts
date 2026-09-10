@@ -3,9 +3,43 @@
 // Tipos compartidos para el módulo de Ventas
 // ============================================================
 
-export type EstadoVenta = "abierta" | "cerrada";
+
+// ============================================================
+// ESTADO DE LA VENTA
+// ============================================================
+
+export type EstadoVenta =
+  | "abierta"
+  | "cerrada";
+
+
+// ============================================================
+// PRODUCTO DENTRO DE UNA VENTA
+// ============================================================
+
+export type ProductoVenta = {
+
+  id: number;
+
+  productoId: number | null;
+
+  nombre: string;
+
+  precio: number;
+
+  cantidad: number;
+
+  subtotal: number;
+
+};
+
+
+// ============================================================
+// VENTA
+// ============================================================
 
 export type Venta = {
+
   id: number;
 
   mesaId: number | null;
@@ -19,18 +53,28 @@ export type Venta = {
   createdAt: string | null;
 
   closedAt: string | null;
+
 };
 
 
 // ============================================================
-// VENTA CON INFORMACIÓN DE MESA Y USUARIO
+// VENTA CON INFORMACIÓN DE MESA, USUARIO Y PRODUCTOS
 // ============================================================
 
-export type VentaDetalle = Venta & {
-  mesaNumero: number | null;
+export type VentaDetalle =
+  Venta & {
 
-  usuarioNombre: string;
-};
+    mesaNumero: number | null;
+
+    usuarioNombre: string;
+
+    // ================================================
+    // PRODUCTOS DE LA VENTA
+    // ================================================
+
+    productos: ProductoVenta[];
+
+  };
 
 
 // ============================================================
@@ -38,6 +82,7 @@ export type VentaDetalle = Venta & {
 // ============================================================
 
 export type ResumenVentasUsuario = {
+
   usuarioId: string | null;
 
   usuarioNombre: string;
@@ -47,6 +92,7 @@ export type ResumenVentasUsuario = {
   totalVentas: number;
 
   ventas: VentaDetalle[];
+
 };
 
 
@@ -56,31 +102,42 @@ export type ResumenVentasUsuario = {
 
 export type UseVentasResult = {
 
-  // Datos
+  // ========================================================
+  // DATOS
+  // ========================================================
 
   ventas: VentaDetalle[];
 
-  resumenUsuarios: ResumenVentasUsuario[];
+  resumenUsuarios:
+    ResumenVentasUsuario[];
 
 
-  // Estados
+  // ========================================================
+  // ESTADOS
+  // ========================================================
 
   cargando: boolean;
 
   error: string | null;
 
 
-  // Resumen general
+  // ========================================================
+  // RESUMEN GENERAL
+  // ========================================================
 
   totalVentasDia: number;
 
   cantidadVentasDia: number;
 
 
-  // Funciones
+  // ========================================================
+  // FUNCIONES
+  // ========================================================
 
-  cargarVentas: () => Promise<void>;
+  cargarVentas:
+    () => Promise<void>;
 
-  limpiarError: () => void;
+  limpiarError:
+    () => void;
 
 };
