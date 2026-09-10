@@ -64,27 +64,20 @@ function etiquetaVentas(cantidad: number): string {
 // ICONOS (SVG en línea, sin dependencias)
 // ============================================================
 
-function IconClock() {
+type IconProps = { size?: number };
+
+function IconClock({ size = 16 }: IconProps) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="10" cy="10" r="7.25" />
       <path d="M10 6.2v3.8l2.6 1.5" />
     </svg>
   );
 }
 
-function IconReceipt() {
+function IconAlertTriangle({ size = 16 }: IconProps) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 3h10v14l-1.9-1.3-1.7 1.3-1.7-1.3-1.7 1.3-1.7-1.3L5 17V3z" />
-      <path d="M7.3 7.2h5.4M7.3 10.2h5.4" />
-    </svg>
-  );
-}
-
-function IconAlertTriangle() {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <path d="M10 3.4 17.3 16H2.7L10 3.4z" />
       <path d="M10 8.3v3" />
       <circle cx="10" cy="13.6" r="0.9" fill="currentColor" stroke="none" />
@@ -92,9 +85,9 @@ function IconAlertTriangle() {
   );
 }
 
-function IconInbox() {
+function IconInbox({ size = 32 }: IconProps) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 8.6 5 3.6h10l2 5" />
       <path d="M3 8.6h4.1c.3 1 1.1 1.7 2.4 1.7s2.1-.7 2.4-1.7H17" />
       <path d="M3 8.6v6.3c0 .6.45 1 1 1h12c.55 0 1-.4 1-1V8.6" />
@@ -102,17 +95,17 @@ function IconInbox() {
   );
 }
 
-function IconX() {
+function IconX({ size = 15 }: IconProps) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
       <path d="M5 5l10 10M15 5 5 15" />
     </svg>
   );
 }
 
-function IconChevronDown() {
+function IconChevronDown({ size = 16 }: IconProps) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M5 7.5 10 12.5 15 7.5" />
     </svg>
   );
@@ -187,7 +180,7 @@ export default function VentasUsuarioModal({ resumen, onCerrar }: Props) {
                     onClick={() => seleccionarVenta(venta.id)}
                   >
                     <span className="venta-hora">
-                      <IconClock />
+                      <IconClock size={14} />
                       {formatoHora(venta.closedAt ?? venta.createdAt)}
                     </span>
 
@@ -203,14 +196,9 @@ export default function VentasUsuarioModal({ resumen, onCerrar }: Props) {
                   <div id={`detalle-venta-${venta.id}`} className={`venta-detalle${estaAbierta ? " abierto" : ""}`}>
                     <div className="venta-detalle-inner">
                       <div className="venta-detalle-content">
-                        <div className="detalle-titulo">
-                          <IconReceipt />
-                          <span>Productos de la venta</span>
-                        </div>
-
                         {venta.productos.length === 0 ? (
                           <div className="detalle-vacio">
-                            <IconAlertTriangle />
+                            <IconAlertTriangle size={15} />
                             <span>Esta venta no tiene productos registrados.</span>
                           </div>
                         ) : (
@@ -434,19 +422,7 @@ export default function VentasUsuarioModal({ resumen, onCerrar }: Props) {
         }
         .venta-detalle.abierto { grid-template-rows: 1fr; }
         .venta-detalle-inner { overflow: hidden; }
-        .venta-detalle-content { padding: 4px 24px 20px; }
-
-        .detalle-titulo {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin: 12px 0 10px;
-          font-size: 12px;
-          font-weight: 700;
-          letter-spacing: 0.02em;
-          color: var(--vm-text-muted);
-        }
-        .detalle-titulo svg { width: 14px; height: 14px; }
+        .venta-detalle-content { padding: 16px 24px 20px; }
 
         .detalle-vacio {
           display: flex;
@@ -506,7 +482,7 @@ export default function VentasUsuarioModal({ resumen, onCerrar }: Props) {
           .ventas-modal-header { padding: 18px 16px 16px; }
           .vm-hint { padding: 10px 16px; }
           .venta-item { padding: 12px 16px; gap: 10px; }
-          .venta-detalle-content { padding: 4px 16px 16px; }
+          .venta-detalle-content { padding: 14px 16px 16px; }
           .ventas-modal-footer { padding: 16px; }
           .venta-hora { width: 56px; }
         }
