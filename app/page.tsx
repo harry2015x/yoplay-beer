@@ -35,7 +35,7 @@ export default function Home() {
   // ESTADO DE MESAS Y VENTAS
   // =========================================================
 
-  const mesasEstado = useMesas(usuario?.id ?? null);
+  const mesasEstado = useMesas();
 
   const {
     mesas,

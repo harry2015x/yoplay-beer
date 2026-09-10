@@ -15,23 +15,14 @@ import {
 
 /**
  * Hook principal para administrar:
- *
  * - Mesas
  * - Pedidos
  * - Ventas
- *
- * usuarioId:
- * ID del usuario autenticado que está realizando
- * las ventas.
  */
-export function useMesas(
-  usuarioId: string | null
-) {
-  const [mesas, setMesas] =
-    useState<Mesa[]>([]);
+export function useMesas() {
+  const [mesas, setMesas] = useState<Mesa[]>([]);
 
-  const [ventas, setVentas] =
-    useState<Venta[]>([]);
+  const [ventas, setVentas] = useState<Venta[]>([]);
 
   const [cargandoMesas, setCargandoMesas] =
     useState(true);
@@ -61,10 +52,9 @@ export function useMesas(
     });
   }
 
-  // ============================================================
-  // CERRAR AUTOMÁTICAMENTE NOTIFICACIONES
-  // ============================================================
-
+  /**
+   * Cierra automáticamente las notificaciones.
+   */
   useEffect(() => {
     if (!notificacion) return;
 
@@ -72,9 +62,8 @@ export function useMesas(
       setNotificacion(null);
     }, 4000);
 
-    return () => {
+    return () =>
       clearTimeout(temporizador);
-    };
   }, [notificacion]);
 
   // ============================================================
@@ -86,10 +75,11 @@ export function useMesas(
 
     setErrorMesas(null);
 
-    const { data, error } = await supabase
-      .from("mesas")
-      .select("*")
-      .order("numero");
+    const { data, error } =
+      await supabase
+        .from("mesas")
+        .select("*")
+        .order("numero");
 
     if (error) {
       console.error(
@@ -153,12 +143,13 @@ export function useMesas(
   // ============================================================
 
   async function cargarVentas() {
-    const { data, error } = await supabase
-      .from("ventas")
-      .select("*")
-      .order("created_at", {
-        ascending: false,
-      });
+    const { data, error } =
+      await supabase
+        .from("ventas")
+        .select("*")
+        .order("created_at", {
+          ascending: true,
+        });
 
     if (error) {
       console.error(
@@ -182,10 +173,16 @@ export function useMesas(
 
         mesaNumero: fila.mesa_id,
 
+        // ======================================================
+        // USUARIO QUE REALIZÓ LA VENTA
+        // ======================================================
+
         usuarioId:
           fila.usuario_id ?? null,
 
-        total: Number(fila.total),
+        total: Number(
+          fila.total ?? 0
+        ),
 
         fecha: fila.created_at
           ? new Date(fila.created_at)
@@ -193,7 +190,7 @@ export function useMesas(
       }));
 
     // ==========================================================
-    // OBTENER NÚMERO REAL DE LAS MESAS
+    // OBTENER EL NÚMERO REAL DE LAS MESAS
     // ==========================================================
 
     const {
@@ -212,14 +209,16 @@ export function useMesas(
       );
 
       setVentas(
-        ventasCargadas.map((venta) => ({
-          ...venta,
+        ventasCargadas.map(
+          (venta) => ({
+            ...venta,
 
-          mesaNumero:
-            numerosMesas.get(
-              venta.mesaId
-            ) ?? venta.mesaId,
-        }))
+            mesaNumero:
+              numerosMesas.get(
+                venta.mesaId
+              ) ?? venta.mesaId,
+          })
+        )
       );
     } else {
       setVentas(ventasCargadas);
@@ -227,7 +226,7 @@ export function useMesas(
   }
 
   // ============================================================
-  // CARGAR DATOS
+  // CARGAR DATOS AL INICIAR
   // ============================================================
 
   useEffect(() => {
@@ -250,12 +249,13 @@ export function useMesas(
   async function abrirMesa(
     id: number
   ) {
-    const { error } = await supabase
-      .from("mesas")
-      .update({
-        estado: "ocupada",
-      })
-      .eq("id", id);
+    const { error } =
+      await supabase
+        .from("mesas")
+        .update({
+          estado: "ocupada",
+        })
+        .eq("id", id);
 
     if (error) {
       console.error(
@@ -337,8 +337,7 @@ export function useMesas(
           );
 
         const nuevosProductos:
-          ItemPedido[] =
-          existente
+          ItemPedido[] = existente
             ? mesa.productos.map(
                 (item) =>
                   item.productoId ===
@@ -347,8 +346,7 @@ export function useMesas(
                         ...item,
 
                         cantidad:
-                          item.cantidad +
-                          1,
+                          item.cantidad + 1,
                       }
                     : item
               )
@@ -470,8 +468,7 @@ export function useMesas(
                     ...item,
 
                     cantidad:
-                      item.cantidad -
-                      1,
+                      item.cantidad - 1,
                   }
                 : item
             )
@@ -548,19 +545,6 @@ export function useMesas(
   ): Promise<boolean> {
 
     // ==========================================================
-    // VERIFICAR USUARIO AUTENTICADO
-    // ==========================================================
-
-    if (!usuarioId) {
-      mostrarNotificacion(
-        "error",
-        "No hay un usuario autenticado. No se puede registrar la venta."
-      );
-
-      return false;
-    }
-
-    // ==========================================================
     // BUSCAR MESA
     // ==========================================================
 
@@ -570,11 +554,16 @@ export function useMesas(
       );
 
     if (!mesa) {
+      mostrarNotificacion(
+        "error",
+        "No se encontró la mesa."
+      );
+
       return false;
     }
 
     // ==========================================================
-    // VALIDAR PRODUCTOS
+    // VALIDAR PEDIDO
     // ==========================================================
 
     if (
@@ -590,40 +579,64 @@ export function useMesas(
     }
 
     // ==========================================================
-    // REGISTRAR VENTA
+    // OBTENER USUARIO AUTENTICADO
+    // ==========================================================
+
+    const {
+      data: datosUsuario,
+      error: errorUsuario,
+    } =
+      await supabase.auth.getUser();
+
+    const usuario =
+      datosUsuario.user;
+
+    if (
+      errorUsuario ||
+      !usuario
+    ) {
+      console.error(
+        "Error obteniendo usuario:",
+        errorUsuario
+      );
+
+      mostrarNotificacion(
+        "error",
+        "No se pudo identificar el usuario que realiza la venta."
+      );
+
+      return false;
+    }
+
+    // ==========================================================
+    // CREAR VENTA
     // ==========================================================
 
     const {
       data: ventaCreada,
       error: errorVenta,
-    } = await supabase
-      .from("ventas")
-      .insert([
-        {
-          mesa_id: mesa.id,
+    } =
+      await supabase
+        .from("ventas")
+        .insert([
+          {
+            mesa_id: mesa.id,
 
-          // ====================================================
-          // USUARIO QUE REALIZÓ LA VENTA
-          // ====================================================
+            usuario_id:
+              usuario.id,
 
-          usuario_id:
-            usuarioId,
+            total: mesa.total,
 
-          total:
-            mesa.total,
+            estado: "cerrada",
+          },
+        ])
+        .select()
+        .single();
 
-          estado:
-            "cerrada",
-        },
-      ])
-      .select()
-      .single();
-
-    // ==========================================================
-    // ERROR AL REGISTRAR VENTA
-    // ==========================================================
-
-    if (errorVenta) {
+    if (
+      errorVenta ||
+      !ventaCreada
+    ) {
       console.error(
         "Error registrando la venta:",
         errorVenta
@@ -638,20 +651,98 @@ export function useMesas(
     }
 
     // ==========================================================
+    // PREPARAR DETALLES DE LA VENTA
+    // ==========================================================
+
+    const detallesVenta =
+      mesa.productos.map(
+        (producto) => ({
+          venta_id:
+            ventaCreada.id,
+
+          producto_id:
+            producto.productoId,
+
+          nombre_producto:
+            producto.nombre,
+
+          precio:
+            producto.precio,
+
+          cantidad:
+            producto.cantidad,
+
+          subtotal:
+            producto.precio *
+            producto.cantidad,
+        })
+      );
+
+    // ==========================================================
+    // GUARDAR PRODUCTOS EN venta_detalles
+    // ==========================================================
+
+    const {
+      error: errorDetalles,
+    } =
+      await supabase
+        .from("venta_detalles")
+        .insert(
+          detallesVenta
+        );
+
+    if (errorDetalles) {
+      console.error(
+        "Error guardando detalle de venta:",
+        errorDetalles
+      );
+
+      // ========================================================
+      // ELIMINAR VENTA SI FALLÓ EL DETALLE
+      // ========================================================
+
+      const {
+        error: errorEliminarVenta,
+      } =
+        await supabase
+          .from("ventas")
+          .delete()
+          .eq(
+            "id",
+            ventaCreada.id
+          );
+
+      if (errorEliminarVenta) {
+        console.error(
+          "Error eliminando venta incompleta:",
+          errorEliminarVenta
+        );
+      }
+
+      mostrarNotificacion(
+        "error",
+        "No se pudieron guardar los productos de la venta."
+      );
+
+      return false;
+    }
+
+    // ==========================================================
     // LIBERAR MESA EN SUPABASE
     // ==========================================================
 
     const {
       error: errorMesa,
-    } = await supabase
-      .from("mesas")
-      .update({
-        estado: "libre",
-      })
-      .eq(
-        "id",
-        mesa.id
-      );
+    } =
+      await supabase
+        .from("mesas")
+        .update({
+          estado: "libre",
+        })
+        .eq(
+          "id",
+          mesa.id
+        );
 
     if (errorMesa) {
       console.error(
@@ -661,7 +752,7 @@ export function useMesas(
 
       mostrarNotificacion(
         "error",
-        "La venta se registró, pero la mesa no se pudo liberar."
+        "La venta fue registrada, pero la mesa no se pudo liberar."
       );
 
       return false;
@@ -672,6 +763,8 @@ export function useMesas(
     // ==========================================================
 
     setVentas((prev) => [
+      ...prev,
+
       {
         id:
           ventaCreada.id,
@@ -683,12 +776,10 @@ export function useMesas(
           mesa.numero,
 
         usuarioId:
-          ventaCreada.usuario_id ??
-          usuarioId,
+          usuario.id,
 
         total:
           Number(
-            ventaCreada.total ??
             mesa.total
           ),
 
@@ -699,8 +790,6 @@ export function useMesas(
               )
             : new Date(),
       },
-
-      ...prev,
     ]);
 
     // ==========================================================
@@ -757,7 +846,6 @@ export function useMesas(
             mesa.id ===
             mesaSeleccionadaId
         ) ?? null,
-
       [
         mesas,
         mesaSeleccionadaId,
@@ -765,57 +853,22 @@ export function useMesas(
     );
 
   // ============================================================
-  // VERIFICAR SI UNA FECHA ES HOY
-  // ============================================================
-
-  function esFechaDeHoy(
-    fecha: Date
-  ): boolean {
-
-    const hoy =
-      new Date();
-
-    return (
-      fecha.getFullYear() ===
-        hoy.getFullYear() &&
-      fecha.getMonth() ===
-        hoy.getMonth() &&
-      fecha.getDate() ===
-        hoy.getDate()
-    );
-  }
-
-  // ============================================================
-  // VENTAS DE HOY DEL USUARIO ACTUAL
+  // TOTAL DE VENTAS
   // ============================================================
 
   const ventasDelDia =
     useMemo(
       () =>
-        ventas
-          .filter(
-            (venta) =>
-              esFechaDeHoy(
-                venta.fecha
-              ) &&
-              venta.usuarioId ===
-                usuarioId
-          )
-          .reduce(
-            (
-              total,
-              venta
-            ) =>
-              total +
-              venta.total,
-
-            0
-          ),
-
-      [
-        ventas,
-        usuarioId,
-      ]
+        ventas.reduce(
+          (
+            total,
+            venta
+          ) =>
+            total +
+            venta.total,
+          0
+        ),
+      [ventas]
     );
 
   // ============================================================
@@ -857,17 +910,16 @@ export function useMesas(
 
         ventasActivas,
       };
-
     }, [mesas]);
 
   // ============================================================
-  // RETURN
+  // RETORNO DEL HOOK
   // ============================================================
 
   return {
 
     // ==========================================================
-    // ESTADO
+    // DATOS
     // ==========================================================
 
     mesas,
@@ -887,21 +939,36 @@ export function useMesas(
     notificacion,
 
     // ==========================================================
-    // ACCIONES
+    // NOTIFICACIONES
     // ==========================================================
 
-    cerrarNotificacion: () =>
-      setNotificacion(null),
+    cerrarNotificacion:
+      () =>
+        setNotificacion(
+          null
+        ),
+
+    // ==========================================================
+    // CARGAS
+    // ==========================================================
 
     cargarMesas,
 
     cargarVentas,
+
+    // ==========================================================
+    // MESAS
+    // ==========================================================
 
     abrirMesa,
 
     seleccionarMesa,
 
     cerrarModal,
+
+    // ==========================================================
+    // PEDIDOS
+    // ==========================================================
 
     agregarProducto,
 
@@ -911,12 +978,16 @@ export function useMesas(
 
     eliminarProducto,
 
+    // ==========================================================
+    // VENTAS
+    // ==========================================================
+
     cerrarMesa,
   };
 }
 
 // ============================================================
-// TIPO DEL RESULTADO
+// TIPO DEL RESULTADO DEL HOOK
 // ============================================================
 
 export type UseMesasResult =
