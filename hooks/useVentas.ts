@@ -11,9 +11,9 @@ import { supabase } from "../lib/supabase";
 
 import type {
   ProductoVenta,
+  VentaDetalle,
   ResumenVentasUsuario,
   UseVentasResult,
-  VentaDetalle,
 } from "../types/ventas";
 
 
@@ -38,6 +38,52 @@ export function useVentas(): UseVentasResult {
 
 
   // ==========================================================
+  // OBTENER INICIO DEL DÍA
+  // ==========================================================
+
+  const obtenerInicioDia = () => {
+
+    const ahora = new Date();
+
+    const inicioDia = new Date(
+      ahora.getFullYear(),
+      ahora.getMonth(),
+      ahora.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+
+    return inicioDia.toISOString();
+
+  };
+
+
+  // ==========================================================
+  // OBTENER FIN DEL DÍA
+  // ==========================================================
+
+  const obtenerFinDia = () => {
+
+    const ahora = new Date();
+
+    const finDia = new Date(
+      ahora.getFullYear(),
+      ahora.getMonth(),
+      ahora.getDate(),
+      23,
+      59,
+      59,
+      999
+    );
+
+    return finDia.toISOString();
+
+  };
+
+
+  // ==========================================================
   // CARGAR VENTAS
   // ==========================================================
 
@@ -51,36 +97,20 @@ export function useVentas(): UseVentasResult {
         setError(null);
 
 
-        // ======================================================
-        // FECHA ACTUAL
-        // ======================================================
+        // ====================================================
+        // FECHAS DEL DÍA
+        // ====================================================
 
-        const ahora = new Date();
+        const inicioDia =
+          obtenerInicioDia();
 
-        const inicioDia = new Date(
-          ahora.getFullYear(),
-          ahora.getMonth(),
-          ahora.getDate(),
-          0,
-          0,
-          0,
-          0
-        );
-
-        const finDia = new Date(
-          ahora.getFullYear(),
-          ahora.getMonth(),
-          ahora.getDate(),
-          23,
-          59,
-          59,
-          999
-        );
+        const finDia =
+          obtenerFinDia();
 
 
-        // ======================================================
+        // ====================================================
         // CONSULTAR VENTAS
-        // ======================================================
+        // ====================================================
 
         const {
           data,
@@ -106,7 +136,6 @@ export function useVentas(): UseVentasResult {
 
             venta_detalles (
               id,
-              venta_id,
               producto_id,
               nombre_producto,
               precio,
@@ -120,23 +149,23 @@ export function useVentas(): UseVentasResult {
           )
           .gte(
             "created_at",
-            inicioDia.toISOString()
+            inicioDia
           )
           .lte(
             "created_at",
-            finDia.toISOString()
+            finDia
           )
           .order(
             "created_at",
             {
-              ascending: false,
+              ascending: true,
             }
           );
 
 
-        // ======================================================
-        // VALIDAR ERROR
-        // ======================================================
+        // ====================================================
+        // ERROR
+        // ====================================================
 
         if (supabaseError) {
 
@@ -146,7 +175,7 @@ export function useVentas(): UseVentasResult {
           );
 
           setError(
-            supabaseError.message
+            "No fue posible cargar las ventas."
           );
 
           setVentas([]);
@@ -156,23 +185,31 @@ export function useVentas(): UseVentasResult {
         }
 
 
-        // ======================================================
-        // TRANSFORMAR VENTAS
-        // ======================================================
+        console.log(
+          "VENTAS CARGADAS:",
+          data
+        );
+
+
+        // ====================================================
+        // TRANSFORMAR DATOS
+        // ====================================================
 
         const ventasTransformadas:
           VentaDetalle[] =
-          (data ?? []).map(
+          (data || []).map(
             (venta: any) => {
 
 
-              // ==================================================
+              // ==============================================
               // TRANSFORMAR PRODUCTOS
-              // ==================================================
+              // ==============================================
 
               const productos:
                 ProductoVenta[] =
-                (venta.venta_detalles ?? []).map(
+                (
+                  venta.venta_detalles || []
+                ).map(
                   (detalle: any) => {
 
                     return {
@@ -191,30 +228,21 @@ export function useVentas(): UseVentasResult {
 
                       nombreProducto:
                         detalle.nombre_producto
-                        ?? "Producto sin nombre",
+                          ?? "Producto sin nombre",
 
                       precio:
                         Number(
-                          detalle.precio ?? 0
+                          detalle.precio || 0
                         ),
 
                       cantidad:
                         Number(
-                          detalle.cantidad ?? 0
+                          detalle.cantidad || 0
                         ),
 
                       subtotal:
                         Number(
-                          detalle.subtotal ??
-                          (
-                            Number(
-                              detalle.precio ?? 0
-                            )
-                            *
-                            Number(
-                              detalle.cantidad ?? 0
-                            )
-                          )
+                          detalle.subtotal || 0
                         ),
 
                     };
@@ -223,11 +251,15 @@ export function useVentas(): UseVentasResult {
                 );
 
 
-              // ==================================================
+              // ==============================================
               // RETORNAR VENTA
-              // ==================================================
+              // ==============================================
 
               return {
+
+                // ============================================
+                // DATOS DE LA VENTA
+                // ============================================
 
                 id:
                   Number(
@@ -243,24 +275,28 @@ export function useVentas(): UseVentasResult {
 
                 usuarioId:
                   venta.usuario_id
-                  ?? null,
+                    ?? null,
 
                 total:
                   Number(
-                    venta.total ?? 0
+                    venta.total || 0
                   ),
 
                 estado:
-                  venta.estado
-                  ?? "",
+                  venta.estado,
 
                 createdAt:
                   venta.created_at
-                  ?? null,
+                    ?? null,
 
                 closedAt:
                   venta.closed_at
-                  ?? null,
+                    ?? null,
+
+
+                // ============================================
+                // MESA
+                // ============================================
 
                 mesaNumero:
                   venta.mesas?.numero
@@ -269,11 +305,22 @@ export function useVentas(): UseVentasResult {
                       )
                     : null,
 
+
+                // ============================================
+                // USUARIO
+                // ============================================
+
                 usuarioNombre:
                   venta.profiles?.nombre
-                  ?? "Ventas sin usuario",
+                    ?? "Ventas sin usuario",
+
+
+                // ============================================
+                // PRODUCTOS
+                // ============================================
 
                 productos:
+
                   productos,
 
               };
@@ -282,21 +329,17 @@ export function useVentas(): UseVentasResult {
           );
 
 
-        // ======================================================
-        // DEBUG
-        // ======================================================
+        // ====================================================
+        // GUARDAR VENTAS
+        // ====================================================
 
-        console.log(
-          "VENTAS CARGADAS:",
+        setVentas(
           ventasTransformadas
         );
 
 
-        // ======================================================
-        // GUARDAR ESTADO
-        // ======================================================
-
-        setVentas(
+        console.log(
+          "VENTAS TRANSFORMADAS:",
           ventasTransformadas
         );
 
@@ -304,7 +347,7 @@ export function useVentas(): UseVentasResult {
       } catch (err) {
 
         console.error(
-          "Error inesperado cargando ventas:",
+          "Error inesperado:",
           err
         );
 
@@ -357,25 +400,28 @@ export function useVentas(): UseVentasResult {
 
 
         ventas.forEach(
-          (venta) => {
+          (
+            venta
+          ) => {
 
-            const claveUsuario =
+
+            const usuarioId =
               venta.usuarioId
-              ?? "sin-usuario";
+                ?? "sin-usuario";
 
 
-            // ==================================================
-            // CREAR RESUMEN
-            // ==================================================
+            // ================================================
+            // CREAR USUARIO
+            // ================================================
 
             if (
               !mapa.has(
-                claveUsuario
+                usuarioId
               )
             ) {
 
               mapa.set(
-                claveUsuario,
+                usuarioId,
                 {
 
                   usuarioId:
@@ -399,29 +445,40 @@ export function useVentas(): UseVentasResult {
             }
 
 
+            // ================================================
+            // OBTENER RESUMEN
+            // ================================================
+
             const resumen =
               mapa.get(
-                claveUsuario
-              );
+                usuarioId
+              )!;
 
 
-            if (!resumen) {
-              return;
-            }
+            // ================================================
+            // CANTIDAD
+            // ================================================
+
+            resumen.cantidadVentas +=
+              1;
 
 
-            // ==================================================
-            // AGREGAR VENTA
-            // ==================================================
-
-            resumen.cantidadVentas += 1;
+            // ================================================
+            // TOTAL
+            // ================================================
 
             resumen.totalVentas +=
               venta.total;
 
+
+            // ================================================
+            // AGREGAR VENTA
+            // ================================================
+
             resumen.ventas.push(
               venta
             );
+
 
           }
         );
@@ -431,6 +488,7 @@ export function useVentas(): UseVentasResult {
           mapa.values()
         );
 
+
       },
       [
         ventas
@@ -439,7 +497,7 @@ export function useVentas(): UseVentasResult {
 
 
   // ==========================================================
-  // TOTAL VENTAS DEL DÍA
+  // TOTAL DE VENTAS DEL DÍA
   // ==========================================================
 
   const totalVentasDia =
@@ -469,7 +527,7 @@ export function useVentas(): UseVentasResult {
 
 
   // ==========================================================
-  // CANTIDAD DE VENTAS
+  // CANTIDAD DE VENTAS DEL DÍA
   // ==========================================================
 
   const cantidadVentasDia =
@@ -484,7 +542,9 @@ export function useVentas(): UseVentasResult {
     useCallback(
       () => {
 
-        setError(null);
+        setError(
+          null
+        );
 
       },
       []
@@ -497,17 +557,37 @@ export function useVentas(): UseVentasResult {
 
   return {
 
+
+    // ========================================================
+    // DATOS
+    // ========================================================
+
     ventas,
 
     resumenUsuarios,
+
+
+    // ========================================================
+    // ESTADOS
+    // ========================================================
 
     cargando,
 
     error,
 
+
+    // ========================================================
+    // RESUMEN
+    // ========================================================
+
     totalVentasDia,
 
     cantidadVentasDia,
+
+
+    // ========================================================
+    // FUNCIONES
+    // ========================================================
 
     cargarVentas,
 
