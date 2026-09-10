@@ -1,44 +1,66 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-
-import { supabase } from "../../../lib/supabase";
+import { useMemo, useState } from "react";
 
 import type {
   PerfilUsuario,
 } from "../../../hooks/useAuth";
 
 import type {
-  Venta,
-} from "../../../types/mesas";
+  ResumenVentasUsuario,
+  VentaDetalle,
+} from "../../../types/ventas";
 
-import {
-  formatoCOP,
-} from "../../../types/mesas";
+import VentasUsuarioModal from "./VentasUsuarioModal";
 
 
 // ============================================================
-// TIPOS
+// PROPS
 // ============================================================
 
 type Props = {
-  ventas: Venta[];
+
+  ventas: VentaDetalle[];
+
+  resumenUsuarios: ResumenVentasUsuario[];
+
+  cargando: boolean;
+
+  error: string | null;
+
+  cargarVentas: () => Promise<void>;
+
+  limpiarError: () => void;
 
   perfilActual: PerfilUsuario;
 
   esAdministrador: boolean;
+
 };
 
 
-type GrupoVentas = {
-  usuarioId: string | null;
+// ============================================================
+// FORMATO MONEDA
+// ============================================================
 
-  nombre: string;
+function formatoCOP(
+  valor: number
+): string {
 
-  ventas: Venta[];
+  return Number(valor || 0).toLocaleString(
+    "es-CO",
+    {
+      style: "currency",
 
-  total: number;
-};
+      currency: "COP",
+
+      minimumFractionDigits: 0,
+
+      maximumFractionDigits: 0,
+    }
+  );
+
+}
 
 
 // ============================================================
@@ -46,714 +68,220 @@ type GrupoVentas = {
 // ============================================================
 
 export default function VentasModule({
+
   ventas,
+
+  resumenUsuarios,
+
+  cargando,
+
+  error,
+
+  cargarVentas,
+
+  limpiarError,
+
   perfilActual,
+
   esAdministrador,
+
 }: Props) {
 
-  // ==========================================================
-  // ESTADOS
-  // ==========================================================
-
-  const [perfiles, setPerfiles] =
-    useState<PerfilUsuario[]>([]);
-
-  const [cargandoUsuarios, setCargandoUsuarios] =
-    useState(false);
-
-  const [usuarioSeleccionado, setUsuarioSeleccionado] =
-    useState<GrupoVentas | null>(null);
-
 
   // ==========================================================
-  // CARGAR USUARIOS
+  // USUARIO SELECCIONADO
   // ==========================================================
 
-  useEffect(() => {
+  const [
 
-    async function cargarUsuarios() {
+    usuarioSeleccionado,
 
-      // Los vendedores no necesitan cargar
-      // todos los perfiles.
-      if (!esAdministrador) {
-        return;
-      }
+    setUsuarioSeleccionado,
 
-      setCargandoUsuarios(true);
-
-      const { data, error } =
-        await supabase
-          .from("profiles")
-          .select("*")
-          .order("nombre", {
-            ascending: true,
-          });
-
-      if (error) {
-
-        console.error(
-          "Error cargando usuarios:",
-          error.message
-        );
-
-        setPerfiles([]);
-
-      } else {
-
-        setPerfiles(
-          (data ?? []) as PerfilUsuario[]
-        );
-
-      }
-
-      setCargandoUsuarios(false);
-    }
-
-
-    cargarUsuarios();
-
-  }, [esAdministrador]);
+  ] = useState<
+    ResumenVentasUsuario | null
+  >(null);
 
 
   // ==========================================================
-  // FUNCIÓN:
-  // ¿LA VENTA ES DE HOY?
-  // ==========================================================
-
-  function esVentaDeHoy(
-    fecha: Date
-  ) {
-
-    const hoy = new Date();
-
-    const fechaVenta =
-      new Date(fecha);
-
-    return (
-      fechaVenta.getFullYear() ===
-        hoy.getFullYear() &&
-
-      fechaVenta.getMonth() ===
-        hoy.getMonth() &&
-
-      fechaVenta.getDate() ===
-        hoy.getDate()
-    );
-  }
-
-
-  // ==========================================================
-  // VENTAS DEL DÍA
-  // ==========================================================
-
-  const ventasHoy = useMemo(() => {
-
-    return ventas.filter((venta) =>
-      esVentaDeHoy(venta.fecha)
-    );
-
-  }, [ventas]);
-
-
-  // ==========================================================
-  // VENTAS VISIBLES
+  // FILTRAR VENTAS
   //
   // ADMINISTRADOR:
-  // ve todas.
+  // Ve todas las ventas.
   //
   // VENDEDOR:
-  // ve únicamente las suyas.
+  // Solo ve sus propias ventas.
   // ==========================================================
 
-  const ventasVisibles = useMemo(() => {
+  const ventasVisibles = useMemo(
+    () => {
 
-    if (esAdministrador) {
-      return ventasHoy;
-    }
+      if (esAdministrador) {
 
-    return ventasHoy.filter(
-      (venta) =>
-        venta.usuarioId === perfilActual.id
-    );
-
-  }, [
-    ventasHoy,
-    esAdministrador,
-    perfilActual.id,
-  ]);
-
-
-  // ==========================================================
-  // OBTENER NOMBRE DEL USUARIO
-  // ==========================================================
-
-  function obtenerNombreUsuario(
-    usuarioId: string | null
-  ) {
-
-    // ----------------------------------------
-    // VENTAS ANTIGUAS
-    // ----------------------------------------
-
-    if (!usuarioId) {
-      return "Sin usuario asignado";
-    }
-
-
-    // ----------------------------------------
-    // USUARIO ACTUAL
-    // ----------------------------------------
-
-    if (
-      usuarioId === perfilActual.id
-    ) {
-
-      return (
-        perfilActual.nombre ||
-        perfilActual.email ||
-        "Usuario"
-      );
-
-    }
-
-
-    // ----------------------------------------
-    // BUSCAR PERFIL
-    // ----------------------------------------
-
-    const perfil =
-      perfiles.find(
-        (item) =>
-          item.id === usuarioId
-      );
-
-
-    if (perfil) {
-
-      return (
-        perfil.nombre ||
-        perfil.email ||
-        "Usuario"
-      );
-
-    }
-
-
-    return "Usuario desconocido";
-  }
-
-
-  // ==========================================================
-  // AGRUPAR VENTAS POR USUARIO
-  // ==========================================================
-
-  const gruposVentas = useMemo(() => {
-
-    const grupos =
-      new Map<
-        string,
-        GrupoVentas
-      >();
-
-
-    ventasVisibles.forEach(
-      (venta) => {
-
-        const clave =
-          venta.usuarioId ??
-          "sin_usuario";
-
-
-        if (!grupos.has(clave)) {
-
-          grupos.set(
-            clave,
-            {
-              usuarioId:
-                venta.usuarioId,
-
-              nombre:
-                obtenerNombreUsuario(
-                  venta.usuarioId
-                ),
-
-              ventas: [],
-
-              total: 0,
-            }
-          );
-
-        }
-
-
-        const grupo =
-          grupos.get(clave)!;
-
-
-        grupo.ventas.push(venta);
-
-
-        grupo.total +=
-          venta.total;
+        return ventas;
 
       }
-    );
 
 
-    return Array.from(
-      grupos.values()
-    ).sort(
-      (a, b) =>
-        b.total - a.total
-    );
+      return ventas.filter(
+        (venta) =>
 
-  }, [
-    ventasVisibles,
-    perfiles,
-    perfilActual,
-  ]);
+          venta.usuarioId ===
+          perfilActual.id
+      );
+
+    },
+    [
+
+      ventas,
+
+      esAdministrador,
+
+      perfilActual.id,
+
+    ]
+  );
+
+
+  // ==========================================================
+  // RESUMEN DE USUARIOS VISIBLE
+  // ==========================================================
+
+  const resumenVisible = useMemo(
+    () => {
+
+      if (esAdministrador) {
+
+        return resumenUsuarios;
+
+      }
+
+
+      return resumenUsuarios.filter(
+        (resumen) =>
+
+          resumen.usuarioId ===
+          perfilActual.id
+      );
+
+    },
+    [
+
+      resumenUsuarios,
+
+      esAdministrador,
+
+      perfilActual.id,
+
+    ]
+  );
 
 
   // ==========================================================
   // TOTAL DEL DÍA
   // ==========================================================
 
-  const totalDelDia =
-    ventasVisibles.reduce(
-      (total, venta) =>
-        total + venta.total,
-      0
-    );
+  const totalDelDia = useMemo(
+    () => {
+
+      return ventasVisibles.reduce(
+        (
+          total,
+          venta
+        ) => {
+
+          return (
+            total +
+            Number(
+              venta.total || 0
+            )
+          );
+
+        },
+        0
+      );
+
+    },
+    [
+
+      ventasVisibles,
+
+    ]
+  );
 
 
   // ==========================================================
-  // FORMATEAR HORA
+  // CANTIDAD DE VENTAS
   // ==========================================================
 
-  function formatearHora(
-    fecha: Date
+  const cantidadVentas =
+
+    ventasVisibles.length;
+
+
+  // ==========================================================
+  // RECARGAR
+  // ==========================================================
+
+  async function manejarRecargar() {
+
+    await cargarVentas();
+
+  }
+
+
+  // ==========================================================
+  // ABRIR DETALLE
+  // ==========================================================
+
+  function abrirDetalle(
+
+    resumen:
+      ResumenVentasUsuario
+
   ) {
 
-    return new Intl.DateTimeFormat(
-      "es-CO",
-      {
-        hour: "numeric",
-
-        minute: "2-digit",
-
-        hour12: true,
-      }
-    ).format(
-      new Date(fecha)
+    setUsuarioSeleccionado(
+      resumen
     );
 
   }
 
 
   // ==========================================================
-  // ORDENAR VENTAS
-  // CRONOLÓGICAMENTE
+  // CERRAR DETALLE
   // ==========================================================
 
-  const ventasOrdenadas =
+  function cerrarDetalle() {
+
+    setUsuarioSeleccionado(
+      null
+    );
+
+  }
+
+
+  // ==========================================================
+  // MODAL DETALLE
+  // ==========================================================
+
+  if (
     usuarioSeleccionado
-      ? [...usuarioSeleccionado.ventas]
-          .sort(
-            (a, b) =>
-              new Date(
-                a.fecha
-              ).getTime()
-              -
-              new Date(
-                b.fecha
-              ).getTime()
-          )
-      : [];
-
-
-  // ==========================================================
-  // VISTA DETALLE DEL USUARIO
-  // ==========================================================
-
-  if (usuarioSeleccionado) {
+  ) {
 
     return (
 
-      <div
-        style={{
-          background: "white",
+      <VentasUsuarioModal
 
-          padding: "30px",
+        resumen={
+          usuarioSeleccionado
+        }
 
-          borderRadius: "12px",
+        onCerrar={
+          cerrarDetalle
+        }
 
-          boxShadow:
-            "0 2px 10px rgba(0,0,0,0.08)",
-        }}
-      >
-
-        {/* ================================================ */}
-        {/* BOTÓN VOLVER */}
-        {/* ================================================ */}
-
-        <button
-          onClick={() =>
-            setUsuarioSeleccionado(null)
-          }
-          style={{
-            border: "none",
-
-            background:
-              "#f1f5f9",
-
-            padding:
-              "10px 16px",
-
-            borderRadius:
-              "8px",
-
-            cursor:
-              "pointer",
-
-            marginBottom:
-              "25px",
-
-            fontWeight: 600,
-
-            color:
-              "#334155",
-          }}
-        >
-          ← Volver a ventas
-        </button>
-
-
-        {/* ================================================ */}
-        {/* ENCABEZADO */}
-        {/* ================================================ */}
-
-        <div
-          style={{
-            marginBottom:
-              "30px",
-          }}
-        >
-
-          <div
-            style={{
-              fontSize:
-                "13px",
-
-              color:
-                "#6b7280",
-
-              marginBottom:
-                "8px",
-
-              textTransform:
-                "uppercase",
-
-              letterSpacing:
-                "1px",
-            }}
-          >
-            Ventas del día
-          </div>
-
-
-          <h2
-            style={{
-              margin: 0,
-
-              fontSize:
-                "26px",
-
-              color:
-                "#172131",
-            }}
-          >
-            👤 VENTAS DE{" "}
-
-            {
-              usuarioSeleccionado.nombre
-                .toUpperCase()
-            }
-
-          </h2>
-
-
-          <p
-            style={{
-              color:
-                "#6b7280",
-
-              marginTop:
-                "10px",
-            }}
-          >
-
-            {
-              usuarioSeleccionado
-                .ventas
-                .length
-            }{" "}
-
-            {
-              usuarioSeleccionado
-                .ventas
-                .length === 1
-                ? "venta realizada"
-                : "ventas realizadas"
-            }
-
-          </p>
-
-        </div>
-
-
-        {/* ================================================ */}
-        {/* LISTA DE VENTAS */}
-        {/* ================================================ */}
-
-        <div>
-
-          {ventasOrdenadas.map(
-            (venta) => (
-
-              <div
-                key={venta.id}
-
-                style={{
-                  display:
-                    "flex",
-
-                  justifyContent:
-                    "space-between",
-
-                  alignItems:
-                    "center",
-
-                  padding:
-                    "18px 0",
-
-                  borderBottom:
-                    "1px solid #e5e7eb",
-                }}
-              >
-
-                {/* INFORMACIÓN */}
-
-                <div
-                  style={{
-                    display:
-                      "flex",
-
-                    alignItems:
-                      "center",
-
-                    gap:
-                      "15px",
-                  }}
-                >
-
-                  {/* HORA */}
-
-                  <div
-                    style={{
-                      width:
-                        "80px",
-
-                      fontSize:
-                        "14px",
-
-                      fontWeight:
-                        700,
-
-                      color:
-                        "#475569",
-                    }}
-                  >
-                    ⏰{" "}
-
-                    {
-                      formatearHora(
-                        venta.fecha
-                      )
-                    }
-
-                  </div>
-
-
-                  {/* MESA */}
-
-                  <div>
-
-                    <strong
-                      style={{
-                        color:
-                          "#172131",
-                      }}
-                    >
-                      🪑 Mesa{" "}
-
-                      {
-                        venta.mesaNumero
-                      }
-
-                    </strong>
-
-
-                    <div
-                      style={{
-                        marginTop:
-                          "4px",
-
-                        fontSize:
-                          "12px",
-
-                        color:
-                          "#6b7280",
-                      }}
-                    >
-                      Venta registrada
-                    </div>
-
-                  </div>
-
-                </div>
-
-
-                {/* TOTAL */}
-
-                <strong
-                  style={{
-                    color:
-                      "#16a34a",
-
-                    fontSize:
-                      "17px",
-                  }}
-                >
-                  {
-                    formatoCOP(
-                      venta.total
-                    )
-                  }
-                </strong>
-
-              </div>
-
-            )
-          )}
-
-        </div>
-
-
-        {/* ================================================ */}
-        {/* TOTAL USUARIO */}
-        {/* ================================================ */}
-
-        <div
-          style={{
-            marginTop:
-              "30px",
-
-            padding:
-              "25px",
-
-            background:
-              "#172131",
-
-            borderRadius:
-              "12px",
-
-            color:
-              "white",
-
-            display:
-              "flex",
-
-            justifyContent:
-              "space-between",
-
-            alignItems:
-              "center",
-
-            gap:
-              "20px",
-
-            flexWrap:
-              "wrap",
-          }}
-        >
-
-          <div>
-
-            <div
-              style={{
-                fontSize:
-                  "13px",
-
-                color:
-                  "#b0bac8",
-
-                marginBottom:
-                  "7px",
-
-                textTransform:
-                  "uppercase",
-
-                letterSpacing:
-                  "1px",
-              }}
-            >
-              Total del usuario
-            </div>
-
-
-            <div
-              style={{
-                fontSize:
-                  "13px",
-
-                color:
-                  "#b0bac8",
-              }}
-            >
-
-              {
-                usuarioSeleccionado
-                  .ventas
-                  .length
-              }{" "}
-
-              ventas realizadas
-
-            </div>
-
-          </div>
-
-
-          <strong
-            style={{
-              fontSize:
-                "28px",
-
-              color:
-                "#f59e0b",
-            }}
-          >
-            {
-              formatoCOP(
-                usuarioSeleccionado
-                  .total
-              )
-            }
-          </strong>
-
-        </div>
-
-      </div>
+      />
 
     );
 
@@ -761,12 +289,13 @@ export default function VentasModule({
 
 
   // ==========================================================
-  // VISTA PRINCIPAL
+  // RENDER PRINCIPAL
   // ==========================================================
 
   return (
 
     <div>
+
 
       {/* ==================================================== */}
       {/* ENCABEZADO */}
@@ -774,39 +303,218 @@ export default function VentasModule({
 
       <div
         style={{
+
+          display:
+            "flex",
+
+          justifyContent:
+            "space-between",
+
+          alignItems:
+            "flex-start",
+
+          gap:
+            "20px",
+
+          flexWrap:
+            "wrap",
+
           marginBottom:
             "25px",
+
         }}
       >
 
-        <h2
-          style={{
-            marginBottom:
-              "5px",
-          }}
-        >
-          💰 Ventas
-        </h2>
+
+        {/* TÍTULO */}
+
+        <div>
+
+          <h2
+            style={{
+
+              margin:
+                "0 0 5px",
+
+              color:
+                "#172131",
+
+            }}
+          >
+            💰 Ventas
+          </h2>
 
 
-        <p
+          <p
+            style={{
+
+              margin:
+                0,
+
+              color:
+                "#6b7280",
+
+            }}
+          >
+
+            {
+
+              esAdministrador
+
+                ? "Registro diario de ventas por usuario."
+
+                : "Registro de tus ventas realizadas hoy."
+
+            }
+
+          </p>
+
+        </div>
+
+
+        {/* BOTÓN ACTUALIZAR */}
+
+        <button
+
+          onClick={
+            manejarRecargar
+          }
+
+          disabled={
+            cargando
+          }
+
           style={{
+
+            background:
+
+              cargando
+                ? "#94a3b8"
+                : "#172131",
+
             color:
-              "#6b7280",
+              "white",
 
-            margin: 0,
+            border:
+              "none",
+
+            borderRadius:
+              "8px",
+
+            padding:
+              "11px 16px",
+
+            cursor:
+
+              cargando
+                ? "not-allowed"
+                : "pointer",
+
+            fontWeight:
+              700,
+
           }}
+
         >
 
           {
-            esAdministrador
-              ? "Registro diario de ventas por usuario."
-              : "Registro de tus ventas realizadas hoy."
+
+            cargando
+
+              ? "⏳ Cargando..."
+
+              : "🔄 Actualizar"
+
           }
 
-        </p>
+        </button>
 
       </div>
+
+
+      {/* ==================================================== */}
+      {/* ERROR */}
+      {/* ==================================================== */}
+
+      {
+
+        error && (
+
+          <div
+            style={{
+
+              background:
+                "#fee2e2",
+
+              border:
+                "1px solid #fecaca",
+
+              color:
+                "#991b1b",
+
+              padding:
+                "15px",
+
+              borderRadius:
+                "8px",
+
+              marginBottom:
+                "20px",
+
+              display:
+                "flex",
+
+              justifyContent:
+                "space-between",
+
+              alignItems:
+                "center",
+
+              gap:
+                "15px",
+
+            }}
+          >
+
+            <span>
+              ⚠️ {error}
+            </span>
+
+
+            <button
+
+              onClick={
+                limpiarError
+              }
+
+              style={{
+
+                border:
+                  "none",
+
+                background:
+                  "transparent",
+
+                cursor:
+                  "pointer",
+
+                fontWeight:
+                  700,
+
+                color:
+                  "#991b1b",
+
+              }}
+
+            >
+              ✕
+            </button>
+
+          </div>
+
+        )
+
+      }
 
 
       {/* ==================================================== */}
@@ -815,6 +523,7 @@ export default function VentasModule({
 
       <div
         style={{
+
           background:
             "#172131",
 
@@ -847,13 +556,18 @@ export default function VentasModule({
 
           flexWrap:
             "wrap",
+
         }}
       >
+
+
+        {/* TOTAL */}
 
         <div>
 
           <div
             style={{
+
               color:
                 "#b0bac8",
 
@@ -868,6 +582,7 @@ export default function VentasModule({
 
               letterSpacing:
                 "1px",
+
             }}
           >
             💰 Total vendido hoy
@@ -876,25 +591,32 @@ export default function VentasModule({
 
           <strong
             style={{
+
               fontSize:
                 "32px",
 
               color:
                 "#f59e0b",
+
             }}
           >
+
             {
               formatoCOP(
                 totalDelDia
               )
             }
+
           </strong>
 
         </div>
 
 
+        {/* CANTIDAD */}
+
         <div
           style={{
+
             background:
               "#263344",
 
@@ -906,38 +628,49 @@ export default function VentasModule({
 
             textAlign:
               "right",
+
           }}
         >
 
           <strong
             style={{
+
               display:
                 "block",
 
               fontSize:
                 "20px",
+
             }}
           >
+
             {
-              ventasVisibles.length
+              cantidadVentas
             }
+
           </strong>
 
 
           <span
             style={{
+
               color:
                 "#b0bac8",
 
               fontSize:
                 "12px",
+
             }}
           >
 
             {
-              ventasVisibles.length === 1
+
+              cantidadVentas === 1
+
                 ? "venta realizada"
+
                 : "ventas realizadas"
+
             }
 
           </span>
@@ -948,11 +681,12 @@ export default function VentasModule({
 
 
       {/* ==================================================== */}
-      {/* VENTAS POR USUARIO */}
+      {/* CONTENEDOR */}
       {/* ==================================================== */}
 
       <div
         style={{
+
           background:
             "white",
 
@@ -964,29 +698,42 @@ export default function VentasModule({
 
           boxShadow:
             "0 2px 10px rgba(0,0,0,0.08)",
+
         }}
       >
 
+
+        {/* ================================================== */}
         {/* TÍTULO */}
+        {/* ================================================== */}
 
         <h3
           style={{
-            marginTop: 0,
+
+            marginTop:
+              0,
 
             marginBottom:
               "8px",
 
             color:
               "#172131",
+
           }}
         >
 
-          👥{" "}
+          👥
+
+          {" "}
 
           {
+
             esAdministrador
+
               ? "Ventas por usuario"
+
               : "Mis ventas"
+
           }
 
         </h3>
@@ -994,6 +741,7 @@ export default function VentasModule({
 
         <p
           style={{
+
             color:
               "#6b7280",
 
@@ -1002,52 +750,68 @@ export default function VentasModule({
 
             marginBottom:
               "25px",
+
           }}
         >
 
           {
+
             esAdministrador
-              ? "Selecciona un usuario para ver el detalle cronológico de sus ventas."
-              : "Selecciona tu registro para ver el detalle cronológico de tus ventas."
+
+              ? "Selecciona un usuario para ver sus ventas y los productos vendidos."
+
+              : "Selecciona tu registro para ver el detalle de tus ventas."
+
           }
 
         </p>
 
 
-        {/* ================================================ */}
-        {/* CARGANDO USUARIOS */}
-        {/* ================================================ */}
+        {/* ================================================== */}
+        {/* CARGANDO */}
+        {/* ================================================== */}
 
         {
-          cargandoUsuarios &&
-          esAdministrador && (
+
+          cargando && (
 
             <div
               style={{
+
+                textAlign:
+                  "center",
+
+                padding:
+                  "40px",
+
                 color:
                   "#6b7280",
 
-                padding:
-                  "20px 0",
               }}
             >
-              Cargando usuarios...
+
+              ⏳ Cargando ventas...
+
             </div>
 
           )
+
         }
 
 
-        {/* ================================================ */}
+        {/* ================================================== */}
         {/* SIN VENTAS */}
-        {/* ================================================ */}
+        {/* ================================================== */}
 
         {
-          !cargandoUsuarios &&
-          gruposVentas.length === 0 && (
+
+          !cargando &&
+
+          resumenVisible.length === 0 && (
 
             <div
               style={{
+
                 textAlign:
                   "center",
 
@@ -1056,16 +820,19 @@ export default function VentasModule({
 
                 color:
                   "#6b7280",
+
               }}
             >
 
               <div
                 style={{
+
                   fontSize:
                     "40px",
 
                   marginBottom:
                     "12px",
+
                 }}
               >
                 💰
@@ -1079,46 +846,57 @@ export default function VentasModule({
 
               <p
                 style={{
+
                   marginTop:
                     "8px",
 
                   fontSize:
                     "13px",
+
                 }}
               >
+
                 Las ventas aparecerán aquí
                 cuando se cierre una mesa.
+
               </p>
 
             </div>
 
           )
+
         }
 
 
-        {/* ================================================ */}
-        {/* USUARIOS */}
-        {/* ================================================ */}
+        {/* ================================================== */}
+        {/* LISTA DE USUARIOS */}
+        {/* ================================================== */}
 
         {
-          !cargandoUsuarios &&
 
-          gruposVentas.map(
-            (grupo) => (
+          !cargando &&
+
+          resumenVisible.map(
+
+            (resumen) => (
 
               <button
+
                 key={
-                  grupo.usuarioId ??
-                  "sin_usuario"
+                  resumen.usuarioId ??
+                  "sin-usuario"
                 }
 
+                type="button"
+
                 onClick={() =>
-                  setUsuarioSeleccionado(
-                    grupo
+                  abrirDetalle(
+                    resumen
                   )
                 }
 
                 style={{
+
                   width:
                     "100%",
 
@@ -1155,10 +933,10 @@ export default function VentasModule({
                   textAlign:
                     "left",
 
-                  transition:
-                    "0.2s",
                 }}
+
               >
+
 
                 {/* USUARIO */}
 
@@ -1166,6 +944,7 @@ export default function VentasModule({
 
                   <strong
                     style={{
+
                       display:
                         "block",
 
@@ -1174,13 +953,16 @@ export default function VentasModule({
 
                       fontSize:
                         "16px",
+
                     }}
                   >
 
-                    👤{" "}
+                    👤
+
+                    {" "}
 
                     {
-                      grupo.nombre
+                      resumen.usuarioNombre
                     }
 
                   </strong>
@@ -1188,6 +970,7 @@ export default function VentasModule({
 
                   <span
                     style={{
+
                       color:
                         "#6b7280",
 
@@ -1199,17 +982,24 @@ export default function VentasModule({
 
                       display:
                         "block",
+
                     }}
                   >
 
                     {
-                      grupo.ventas.length
-                    }{" "}
+                      resumen.cantidadVentas
+                    }
+
+                    {" "}
 
                     {
-                      grupo.ventas.length === 1
+
+                      resumen.cantidadVentas === 1
+
                         ? "venta"
+
                         : "ventas"
+
                     }
 
                     {" • "}
@@ -1225,6 +1015,7 @@ export default function VentasModule({
 
                 <strong
                   style={{
+
                     color:
                       "#16a34a",
 
@@ -1233,12 +1024,13 @@ export default function VentasModule({
 
                     whiteSpace:
                       "nowrap",
+
                   }}
                 >
 
                   {
                     formatoCOP(
-                      grupo.total
+                      resumen.totalVentas
                     )
                   }
 
@@ -1247,19 +1039,25 @@ export default function VentasModule({
               </button>
 
             )
+
           )
+
         }
 
 
-        {/* ================================================ */}
+        {/* ================================================== */}
         {/* TOTAL FINAL */}
-        {/* ================================================ */}
+        {/* ================================================== */}
 
         {
-          ventasVisibles.length > 0 && (
+
+          !cargando &&
+
+          cantidadVentas > 0 && (
 
             <div
               style={{
+
                 marginTop:
                   "25px",
 
@@ -1283,6 +1081,7 @@ export default function VentasModule({
 
                 gap:
                   "15px",
+
               }}
             >
 
@@ -1290,15 +1089,21 @@ export default function VentasModule({
 
                 <strong
                   style={{
+
                     color:
                       "#172131",
+
                   }}
                 >
 
                   {
+
                     esAdministrador
+
                       ? "TOTAL DE VENTAS DEL DÍA"
+
                       : "TOTAL DE MIS VENTAS"
+
                   }
 
                 </strong>
@@ -1306,6 +1111,7 @@ export default function VentasModule({
 
                 <div
                   style={{
+
                     fontSize:
                       "12px",
 
@@ -1314,17 +1120,24 @@ export default function VentasModule({
 
                     marginTop:
                       "5px",
+
                   }}
                 >
 
                   {
-                    ventasVisibles.length
-                  }{" "}
+                    cantidadVentas
+                  }
+
+                  {" "}
 
                   {
-                    ventasVisibles.length === 1
+
+                    cantidadVentas === 1
+
                       ? "venta registrada"
+
                       : "ventas registradas"
+
                   }
 
                 </div>
@@ -1334,11 +1147,13 @@ export default function VentasModule({
 
               <strong
                 style={{
+
                   color:
                     "#16a34a",
 
                   fontSize:
                     "25px",
+
                 }}
               >
 
@@ -1353,6 +1168,7 @@ export default function VentasModule({
             </div>
 
           )
+
         }
 
       </div>
