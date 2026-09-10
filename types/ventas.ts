@@ -14,7 +14,7 @@ export type EstadoVenta =
 
 
 // ============================================================
-// PRODUCTO DENTRO DE UNA VENTA
+// PRODUCTO DE UNA VENTA
 // ============================================================
 
 export type ProductoVenta = {
@@ -23,7 +23,7 @@ export type ProductoVenta = {
 
   productoId: number | null;
 
-  nombre: string;
+  nombreProducto: string;
 
   precio: number;
 
@@ -58,7 +58,7 @@ export type Venta = {
 
 
 // ============================================================
-// VENTA CON INFORMACIÓN DE MESA, USUARIO Y PRODUCTOS
+// VENTA CON INFORMACIÓN COMPLETA
 // ============================================================
 
 export type VentaDetalle =
@@ -67,10 +67,6 @@ export type VentaDetalle =
     mesaNumero: number | null;
 
     usuarioNombre: string;
-
-    // ================================================
-    // PRODUCTOS DE LA VENTA
-    // ================================================
 
     productos: ProductoVenta[];
 
@@ -102,42 +98,40 @@ export type ResumenVentasUsuario = {
 
 export type UseVentasResult = {
 
-  // ========================================================
+
+  // ==========================================================
   // DATOS
-  // ========================================================
+  // ==========================================================
 
   ventas: VentaDetalle[];
 
-  resumenUsuarios:
-    ResumenVentasUsuario[];
+  resumenUsuarios: ResumenVentasUsuario[];
 
 
-  // ========================================================
+  // ==========================================================
   // ESTADOS
-  // ========================================================
+  // ==========================================================
 
   cargando: boolean;
 
   error: string | null;
 
 
-  // ========================================================
+  // ==========================================================
   // RESUMEN GENERAL
-  // ========================================================
+  // ==========================================================
 
   totalVentasDia: number;
 
   cantidadVentasDia: number;
 
 
-  // ========================================================
+  // ==========================================================
   // FUNCIONES
-  // ========================================================
+  // ==========================================================
 
-  cargarVentas:
-    () => Promise<void>;
+  cargarVentas: () => Promise<void>;
 
-  limpiarError:
-    () => void;
+  limpiarError: () => void;
 
 };

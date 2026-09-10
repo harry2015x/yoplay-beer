@@ -564,7 +564,7 @@ export default function VentasUsuarioModal({
                                             <strong>
 
                                               {
-                                                producto.nombre
+                                                producto.nombreProducto
                                               }
 
                                             </strong>

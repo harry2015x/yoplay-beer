@@ -11,28 +11,10 @@ import { supabase } from "../lib/supabase";
 
 import type {
   VentaDetalle,
+  ProductoVenta,
   ResumenVentasUsuario,
   UseVentasResult,
 } from "../types/ventas";
-
-
-// ============================================================
-// TIPO DE PRODUCTO DE UNA VENTA
-// ============================================================
-
-type ProductoVenta = {
-  id: number;
-
-  productoId: number | null;
-
-  nombre: string;
-
-  precio: number;
-
-  cantidad: number;
-
-  subtotal: number;
-};
 
 
 // ============================================================
@@ -41,6 +23,7 @@ type ProductoVenta = {
 
 export function useVentas(): UseVentasResult {
 
+
   // ==========================================================
   // ESTADOS
   // ==========================================================
@@ -48,8 +31,10 @@ export function useVentas(): UseVentasResult {
   const [ventas, setVentas] =
     useState<VentaDetalle[]>([]);
 
+
   const [cargando, setCargando] =
     useState(true);
+
 
   const [error, setError] =
     useState<string | null>(null);
@@ -106,6 +91,7 @@ export function useVentas(): UseVentasResult {
   // ==========================================================
 
   const cargarVentas = useCallback(
+
     async () => {
 
       try {
@@ -115,60 +101,97 @@ export function useVentas(): UseVentasResult {
         setError(null);
 
 
+        // ======================================================
+        // FECHAS
+        // ======================================================
+
         const inicioDia =
           obtenerInicioDia();
+
 
         const finDia =
           obtenerFinDia();
 
 
         // ======================================================
-        // CONSULTA DE VENTAS + PRODUCTOS
+        // CONSULTA DE VENTAS
         // ======================================================
 
         const {
           data,
           error: supabaseError,
         } = await supabase
+
           .from("ventas")
+
           .select(`
+
             id,
+
             mesa_id,
+
             usuario_id,
+
             total,
+
             estado,
+
             created_at,
+
             closed_at,
 
+
             mesas (
+
               numero
+
             ),
+
 
             profiles (
+
               nombre
+
             ),
 
+
             venta_detalles (
+
               id,
+
               producto_id,
+
               nombre_producto,
+
               precio,
+
               cantidad,
+
               subtotal
+
             )
+
           `)
+
+
           .eq(
             "estado",
             "cerrada"
           )
+
+
           .gte(
             "created_at",
             inicioDia
           )
+
+
           .lte(
             "created_at",
             finDia
           )
+
+
           .order(
             "created_at",
             {
@@ -188,9 +211,11 @@ export function useVentas(): UseVentasResult {
             supabaseError
           );
 
+
           setError(
             "No fue posible cargar las ventas."
           );
+
 
           setVentas([]);
 
@@ -203,53 +228,60 @@ export function useVentas(): UseVentasResult {
         // TRANSFORMAR DATOS
         // ======================================================
 
-        const ventasTransformadas =
+        const ventasTransformadas:
+          VentaDetalle[] =
+
           (data || []).map(
+
             (venta: any) => {
 
 
               // ==================================================
-              // PRODUCTOS DE LA VENTA
+              // PRODUCTOS
               // ==================================================
 
-              const productos: ProductoVenta[] =
+              const productos:
+                ProductoVenta[] =
+
                 (
-                  venta.venta_detalles ||
-                  []
+                  venta.venta_detalles || []
                 ).map(
-                  (detalle: any) => {
 
-                    return {
+                  (detalle: any) => ({
 
-                      id:
-                        detalle.id,
+                    id:
+                      detalle.id,
 
-                      productoId:
-                        detalle.producto_id ??
-                        null,
 
-                      nombre:
-                        detalle.nombre_producto ??
-                        "Producto",
+                    productoId:
+                      detalle.producto_id
+                      ?? null,
 
-                      precio:
-                        Number(
-                          detalle.precio || 0
-                        ),
 
-                      cantidad:
-                        Number(
-                          detalle.cantidad || 0
-                        ),
+                    nombreProducto:
+                      detalle.nombre_producto
+                      ?? "Producto sin nombre",
 
-                      subtotal:
-                        Number(
-                          detalle.subtotal || 0
-                        ),
 
-                    };
+                    precio:
+                      Number(
+                        detalle.precio || 0
+                      ),
 
-                  }
+
+                    cantidad:
+                      Number(
+                        detalle.cantidad || 0
+                      ),
+
+
+                    subtotal:
+                      Number(
+                        detalle.subtotal || 0
+                      ),
+
+                  })
+
                 );
 
 
@@ -259,25 +291,32 @@ export function useVentas(): UseVentasResult {
 
               return {
 
+
                 id:
                   venta.id,
+
 
                 mesaId:
                   venta.mesa_id,
 
+
                 usuarioId:
                   venta.usuario_id,
+
 
                 total:
                   Number(
                     venta.total || 0
                   ),
 
+
                 estado:
                   venta.estado,
 
+
                 createdAt:
                   venta.created_at,
+
 
                 closedAt:
                   venta.closed_at,
@@ -288,6 +327,7 @@ export function useVentas(): UseVentasResult {
                 // ================================================
 
                 mesaNumero:
+
                   venta.mesas?.numero
                   ?? null,
 
@@ -297,48 +337,64 @@ export function useVentas(): UseVentasResult {
                 // ================================================
 
                 usuarioNombre:
+
                   venta.profiles?.nombre
-                  ??
-                  "Ventas sin usuario",
+                  ?? "Ventas sin usuario",
 
 
                 // ================================================
                 // PRODUCTOS
                 // ================================================
 
-                productos,
+                productos:
+
+                  productos,
 
               };
 
             }
+
           );
 
+
+        // ======================================================
+        // GUARDAR VENTAS
+        // ======================================================
 
         setVentas(
           ventasTransformadas
         );
 
+
       } catch (err) {
+
 
         console.error(
           "Error inesperado:",
           err
         );
 
+
         setError(
           "Ocurrió un error al cargar las ventas."
         );
 
+
         setVentas([]);
+
 
       } finally {
 
+
         setCargando(false);
+
 
       }
 
     },
+
     []
+
   );
 
 
@@ -347,12 +403,17 @@ export function useVentas(): UseVentasResult {
   // ==========================================================
 
   useEffect(
+
     () => {
 
       cargarVentas();
 
     },
-    [cargarVentas]
+
+    [
+      cargarVentas
+    ]
+
   );
 
 
@@ -361,76 +422,139 @@ export function useVentas(): UseVentasResult {
   // ==========================================================
 
   const resumenUsuarios =
-    useMemo(() => {
 
-      const mapa =
-        new Map<
-          string,
-          ResumenVentasUsuario
-        >();
+    useMemo(
+
+      () => {
 
 
-      ventas.forEach(
-        (venta) => {
+        const mapa =
 
-          const usuarioId =
-            venta.usuarioId
-            ?? "sin-usuario";
+          new Map<
+            string,
+            ResumenVentasUsuario
+          >();
 
 
-          if (
-            !mapa.has(usuarioId)
-          ) {
+        ventas.forEach(
 
-            mapa.set(
-              usuarioId,
-              {
+          (venta) => {
 
-                usuarioId:
-                  venta.usuarioId,
 
-                usuarioNombre:
-                  venta.usuarioNombre,
+            const usuarioId =
 
-                cantidadVentas: 0,
+              venta.usuarioId
+              ?? "sin-usuario";
 
-                totalVentas: 0,
 
-                ventas: [],
+            // ================================================
+            // CREAR USUARIO
+            // ================================================
 
-              }
+            if (
+
+              !mapa.has(
+                usuarioId
+              )
+
+            ) {
+
+
+              mapa.set(
+
+                usuarioId,
+
+                {
+
+
+                  usuarioId:
+
+                    venta.usuarioId,
+
+
+                  usuarioNombre:
+
+                    venta.usuarioNombre,
+
+
+                  cantidadVentas:
+
+                    0,
+
+
+                  totalVentas:
+
+                    0,
+
+
+                  ventas:
+
+                    [],
+
+                }
+
+              );
+
+            }
+
+
+            // ================================================
+            // OBTENER RESUMEN
+            // ================================================
+
+            const resumen =
+
+              mapa.get(
+                usuarioId
+              )!;
+
+
+            // ================================================
+            // CONTAR VENTA
+            // ================================================
+
+            resumen.cantidadVentas += 1;
+
+
+            // ================================================
+            // SUMAR TOTAL
+            // ================================================
+
+            resumen.totalVentas +=
+
+              venta.total;
+
+
+            // ================================================
+            // AGREGAR VENTA
+            // ================================================
+
+            resumen.ventas.push(
+
+              venta
+
             );
+
 
           }
 
-
-          const resumen =
-            mapa.get(usuarioId)!;
+        );
 
 
-          resumen.cantidadVentas +=
-            1;
+        return Array.from(
+
+          mapa.values()
+
+        );
 
 
-          resumen.totalVentas +=
-            venta.total;
+      },
 
+      [
+        ventas
+      ]
 
-          resumen.ventas.push(
-            venta
-          );
-
-        }
-      );
-
-
-      return Array.from(
-        mapa.values()
-      );
-
-    },
-    [ventas]
-  );
+    );
 
 
   // ==========================================================
@@ -438,26 +562,42 @@ export function useVentas(): UseVentasResult {
   // ==========================================================
 
   const totalVentasDia =
+
     useMemo(
+
       () => {
 
+
         return ventas.reduce(
+
           (
             acumulado,
             venta
           ) => {
 
+
             return (
-              acumulado +
+
+              acumulado
+              +
               venta.total
+
             );
 
+
           },
+
           0
+
         );
 
+
       },
-      [ventas]
+
+      [
+        ventas
+      ]
+
     );
 
 
@@ -466,6 +606,7 @@ export function useVentas(): UseVentasResult {
   // ==========================================================
 
   const cantidadVentasDia =
+
     ventas.length;
 
 
@@ -474,13 +615,17 @@ export function useVentas(): UseVentasResult {
   // ==========================================================
 
   const limpiarError =
+
     useCallback(
+
       () => {
 
         setError(null);
 
       },
+
       []
+
     );
 
 
@@ -490,22 +635,27 @@ export function useVentas(): UseVentasResult {
 
   return {
 
+
     ventas,
 
     resumenUsuarios,
+
 
     cargando,
 
     error,
 
+
     totalVentasDia,
 
     cantidadVentasDia,
+
 
     cargarVentas,
 
     limpiarError,
 
   };
+
 
 }
