@@ -17,6 +17,25 @@ import type {
 
 
 // ============================================================
+// TIPO DE PRODUCTO DE UNA VENTA
+// ============================================================
+
+type ProductoVenta = {
+  id: number;
+
+  productoId: number | null;
+
+  nombre: string;
+
+  precio: number;
+
+  cantidad: number;
+
+  subtotal: number;
+};
+
+
+// ============================================================
 // HOOK DE VENTAS
 // ============================================================
 
@@ -104,7 +123,7 @@ export function useVentas(): UseVentasResult {
 
 
         // ======================================================
-        // CONSULTA
+        // CONSULTA DE VENTAS + PRODUCTOS
         // ======================================================
 
         const {
@@ -127,6 +146,15 @@ export function useVentas(): UseVentasResult {
 
             profiles (
               nombre
+            ),
+
+            venta_detalles (
+              id,
+              producto_id,
+              nombre_producto,
+              precio,
+              cantidad,
+              subtotal
             )
           `)
           .eq(
@@ -148,6 +176,10 @@ export function useVentas(): UseVentasResult {
             }
           );
 
+
+        // ======================================================
+        // ERROR
+        // ======================================================
 
         if (supabaseError) {
 
@@ -171,14 +203,64 @@ export function useVentas(): UseVentasResult {
         // TRANSFORMAR DATOS
         // ======================================================
 
-        const ventasTransformadas:
-          VentaDetalle[] =
+        const ventasTransformadas =
           (data || []).map(
             (venta: any) => {
 
+
+              // ==================================================
+              // PRODUCTOS DE LA VENTA
+              // ==================================================
+
+              const productos: ProductoVenta[] =
+                (
+                  venta.venta_detalles ||
+                  []
+                ).map(
+                  (detalle: any) => {
+
+                    return {
+
+                      id:
+                        detalle.id,
+
+                      productoId:
+                        detalle.producto_id ??
+                        null,
+
+                      nombre:
+                        detalle.nombre_producto ??
+                        "Producto",
+
+                      precio:
+                        Number(
+                          detalle.precio || 0
+                        ),
+
+                      cantidad:
+                        Number(
+                          detalle.cantidad || 0
+                        ),
+
+                      subtotal:
+                        Number(
+                          detalle.subtotal || 0
+                        ),
+
+                    };
+
+                  }
+                );
+
+
+              // ==================================================
+              // RETORNAR VENTA
+              // ==================================================
+
               return {
 
-                id: venta.id,
+                id:
+                  venta.id,
 
                 mesaId:
                   venta.mesa_id,
@@ -201,19 +283,30 @@ export function useVentas(): UseVentasResult {
                   venta.closed_at,
 
 
+                // ================================================
                 // MESA
+                // ================================================
 
                 mesaNumero:
                   venta.mesas?.numero
-                    ?? null,
+                  ?? null,
 
 
+                // ================================================
                 // USUARIO
+                // ================================================
 
                 usuarioNombre:
                   venta.profiles?.nombre
-                    ??
+                  ??
                   "Ventas sin usuario",
+
+
+                // ================================================
+                // PRODUCTOS
+                // ================================================
+
+                productos,
 
               };
 
@@ -282,7 +375,7 @@ export function useVentas(): UseVentasResult {
 
           const usuarioId =
             venta.usuarioId
-              ?? "sin-usuario";
+            ?? "sin-usuario";
 
 
           if (
@@ -315,7 +408,8 @@ export function useVentas(): UseVentasResult {
             mapa.get(usuarioId)!;
 
 
-          resumen.cantidadVentas += 1;
+          resumen.cantidadVentas +=
+            1;
 
 
           resumen.totalVentas +=
