@@ -1,31 +1,12 @@
 "use client";
 
-import {
-  useState,
-} from "react";
+import { useState } from "react";
 
 import type {
+  ProductoVenta,
+  ResumenVentasUsuario,
   VentaDetalle,
 } from "../../../types/ventas";
-
-
-// ============================================================
-// TIPO DEL RESUMEN
-// ============================================================
-
-export type ResumenVentasUsuario = {
-
-  usuarioId: string | null;
-
-  usuarioNombre: string;
-
-  cantidadVentas: number;
-
-  totalVentas: number;
-
-  ventas: VentaDetalle[];
-
-};
 
 
 // ============================================================
@@ -33,13 +14,9 @@ export type ResumenVentasUsuario = {
 // ============================================================
 
 type Props = {
+  resumen: ResumenVentasUsuario;
 
-  resumen:
-    ResumenVentasUsuario;
-
-  onCerrar:
-    () => void;
-
+  onCerrar: () => void;
 };
 
 
@@ -47,26 +24,18 @@ type Props = {
 // FORMATO MONEDA
 // ============================================================
 
-function formatoCOP(
-  valor: number
-): string {
+function formatoCOP(valor: number): string {
 
-  return valor.toLocaleString(
+  return Number(valor || 0).toLocaleString(
     "es-CO",
     {
+      style: "currency",
 
-      style:
-        "currency",
+      currency: "COP",
 
-      currency:
-        "COP",
+      minimumFractionDigits: 0,
 
-      minimumFractionDigits:
-        0,
-
-      maximumFractionDigits:
-        0,
-
+      maximumFractionDigits: 0,
     }
   );
 
@@ -78,13 +47,7 @@ function formatoCOP(
 // ============================================================
 
 function formatoHora(
-
-  fecha:
-    string
-    | Date
-    | null
-    | undefined
-
+  fecha: string | Date | null | undefined
 ): string {
 
   if (!fecha) {
@@ -114,16 +77,11 @@ function formatoHora(
   return fechaObjeto.toLocaleTimeString(
     "es-CO",
     {
+      hour: "2-digit",
 
-      hour:
-        "2-digit",
+      minute: "2-digit",
 
-      minute:
-        "2-digit",
-
-      hour12:
-        true,
-
+      hour12: true,
     }
   );
 
@@ -144,27 +102,24 @@ export default function VentasUsuarioModal({
 
 
   // ==========================================================
-  // VENTA SELECCIONADA
+  // ESTADO
   // ==========================================================
 
   const [
-
     ventaSeleccionada,
-
     setVentaSeleccionada,
-
   ] = useState<number | null>(
     null
   );
 
 
   // ==========================================================
-  // MOSTRAR / OCULTAR DETALLE
+  // ABRIR / CERRAR DETALLE
   // ==========================================================
 
-  const seleccionarVenta = (
+  function toggleVenta(
     ventaId: number
-  ) => {
+  ) {
 
     setVentaSeleccionada(
       (ventaActual) => {
@@ -177,12 +132,13 @@ export default function VentasUsuarioModal({
 
         }
 
+
         return ventaId;
 
       }
     );
 
-  };
+  }
 
 
   // ==========================================================
@@ -192,15 +148,22 @@ export default function VentasUsuarioModal({
   return (
 
     <div
-      className="ventas-modal-overlay"
+      className="
+        ventas-modal-overlay
+      "
       onClick={onCerrar}
     >
 
       <div
-        className="ventas-modal"
+        className="
+          ventas-modal
+        "
         onClick={
-          (event) =>
-            event.stopPropagation()
+          (event) => {
+
+            event.stopPropagation();
+
+          }
         }
       >
 
@@ -209,7 +172,11 @@ export default function VentasUsuarioModal({
         {/* HEADER */}
         {/* ================================================= */}
 
-        <div className="ventas-modal-header">
+        <div
+          className="
+            ventas-modal-header
+          "
+        >
 
           <div>
 
@@ -229,13 +196,13 @@ export default function VentasUsuarioModal({
 
               {
                 resumen.cantidadVentas
-              }{" "}
+              }
+
+              {" "}
 
               {
                 resumen.cantidadVentas === 1
-
                   ? "venta realizada"
-
                   : "ventas realizadas"
               }
 
@@ -245,15 +212,17 @@ export default function VentasUsuarioModal({
 
 
           <button
-
             type="button"
 
             onClick={onCerrar}
 
-            className="ventas-modal-close"
+            className="
+              ventas-modal-close
+            "
 
-            aria-label="Cerrar"
-
+            aria-label="
+              Cerrar
+            "
           >
 
             ✕
@@ -267,31 +236,39 @@ export default function VentasUsuarioModal({
         {/* LISTA DE VENTAS */}
         {/* ================================================= */}
 
-        <div className="ventas-lista">
+        <div
+          className="
+            ventas-lista
+          "
+        >
 
+
+          {/* ================================================= */}
+          {/* SIN VENTAS */}
+          {/* ================================================= */}
 
           {
             resumen.ventas.length === 0
-
               ? (
 
                 <div
-                  className="ventas-vacias"
+                  className="
+                    ventas-vacias
+                  "
                 >
 
-                  No hay ventas registradas
-                  para este usuario.
+                  No hay ventas registradas para este usuario.
 
                 </div>
 
               )
-
               : (
+
 
                 resumen.ventas.map(
 
                   (
-                    venta
+                    venta: VentaDetalle
                   ) => {
 
 
@@ -304,25 +281,44 @@ export default function VentasUsuarioModal({
 
                       <div
                         key={venta.id}
-                        className="venta-item-container"
+
+                        style={{
+
+                          border:
+                            "1px solid #e5e7eb",
+
+                          borderRadius:
+                            "10px",
+
+                          marginBottom:
+                            "12px",
+
+                          overflow:
+                            "hidden",
+
+                          background:
+                            "white",
+
+                        }}
                       >
 
 
-                        {/* ================================= */}
+                        {/* ===================================== */}
                         {/* CABECERA DE LA VENTA */}
-                        {/* ================================= */}
+                        {/* ===================================== */}
 
                         <button
-
                           type="button"
 
-                          onClick={() =>
-                            seleccionarVenta(
-                              venta.id
-                            )
-                          }
+                          onClick={
+                            () => {
 
-                          className="venta-item"
+                              toggleVenta(
+                                venta.id
+                              );
+
+                            }
+                          }
 
                           style={{
 
@@ -333,189 +329,240 @@ export default function VentasUsuarioModal({
                               "none",
 
                             background:
-                              "transparent",
+                              estaAbierta
+                                ? "#f3f4f6"
+                                : "white",
+
+                            padding:
+                              "16px",
 
                             cursor:
                               "pointer",
+
+                            display:
+                              "flex",
+
+                            alignItems:
+                              "center",
+
+                            justifyContent:
+                              "space-between",
 
                             textAlign:
                               "left",
 
                           }}
-
                         >
 
 
-                          {/* HORA */}
+                          {/* IZQUIERDA */}
 
-                          <div
-                            className="venta-hora"
-                          >
+                          <div>
 
-                            ⏰{" "}
 
-                            {
-                              formatoHora(
+                            <div
+                              style={{
 
-                                venta.closedAt
-                                ??
-                                venta.createdAt
+                                fontWeight:
+                                  700,
 
-                              )
-                            }
+                                marginBottom:
+                                  "5px",
+
+                              }}
+                            >
+
+                              🪑 Mesa{" "}
+
+                              {
+                                venta.mesaNumero
+                                ?? "-"
+                              }
+
+                            </div>
+
+
+                            <div
+                              style={{
+
+                                fontSize:
+                                  "13px",
+
+                                color:
+                                  "#6b7280",
+
+                              }}
+                            >
+
+                              ⏰{" "}
+
+                              {
+                                formatoHora(
+
+                                  venta.closedAt
+                                  ??
+
+                                  venta.createdAt
+
+                                )
+                              }
+
+                            </div>
 
                           </div>
 
 
-                          {/* MESA */}
-
-                          <div
-                            className="venta-mesa"
-                          >
-
-                            🪑 Mesa{" "}
-
-                            {
-                              venta.mesaNumero
-                              ?? "-"
-                            }
-
-                          </div>
-
-
-                          {/* TOTAL */}
-
-                          <div
-                            className="venta-total"
-                          >
-
-                            {
-                              formatoCOP(
-                                venta.total
-                              )
-                            }
-
-                          </div>
-
-
-                          {/* FLECHA */}
+                          {/* DERECHA */}
 
                           <div
                             style={{
 
-                              fontSize:
-                                "18px",
+                              display:
+                                "flex",
 
-                              marginLeft:
-                                "10px",
+                              alignItems:
+                                "center",
+
+                              gap:
+                                "12px",
 
                             }}
                           >
 
-                            {
-                              estaAbierta
 
-                                ? "▲"
+                            {/* TOTAL */}
 
-                                : "▼"
-                            }
+                            <strong
+                              style={{
+
+                                color:
+                                  "#16a34a",
+
+                                fontSize:
+                                  "16px",
+
+                              }}
+                            >
+
+                              {
+                                formatoCOP(
+                                  venta.total
+                                )
+                              }
+
+                            </strong>
+
+
+                            {/* FLECHA */}
+
+                            <span
+                              style={{
+
+                                fontSize:
+                                  "18px",
+
+                                color:
+                                  "#6b7280",
+
+                              }}
+                            >
+
+                              {
+                                estaAbierta
+                                  ? "▲"
+                                  : "▼"
+                              }
+
+                            </span>
+
 
                           </div>
-
 
                         </button>
 
 
-                        {/* ================================= */}
+                        {/* ===================================== */}
                         {/* DETALLE DE PRODUCTOS */}
-                        {/* ================================= */}
+                        {/* ===================================== */}
 
                         {
                           estaAbierta && (
 
                             <div
-
                               style={{
 
-                                background:
-                                  "#f8fafc",
-
-                                borderRadius:
-                                  "10px",
-
                                 padding:
-                                  "15px",
+                                  "16px",
 
-                                marginTop:
-                                  "8px",
-
-                                marginBottom:
-                                  "15px",
-
-                                border:
+                                borderTop:
                                   "1px solid #e5e7eb",
 
-                              }}
+                                background:
+                                  "#fafafa",
 
+                              }}
                             >
 
 
-                              {/* ========================= */}
-                              {/* TÍTULO */}
-                              {/* ========================= */}
+                              {/* ================================= */}
+                              {/* TITULO */}
+                              {/* ================================= */}
 
-                              <div
-
+                              <h4
                                 style={{
 
-                                  fontWeight:
-                                    700,
-
-                                  marginBottom:
-                                    "12px",
+                                  margin:
+                                    "0 0 15px 0",
 
                                   color:
                                     "#374151",
 
-                                }}
+                                  fontSize:
+                                    "14px",
 
+                                }}
                               >
 
-                                🧾 Productos vendidos
+                                🍺 PRODUCTOS VENDIDOS
 
-                              </div>
+                              </h4>
 
 
-                              {/* ========================= */}
-                              {/* PRODUCTOS */}
-                              {/* ========================= */}
+                              {/* ================================= */}
+                              {/* SIN PRODUCTOS */}
+                              {/* ================================= */}
 
                               {
+                                !venta.productos
+                                ||
 
-                                venta.productos
-                                  .length === 0
+                                venta.productos.length === 0
 
                                   ? (
 
                                     <div
-
                                       style={{
 
+                                        padding:
+                                          "15px",
+
+                                        background:
+                                          "#fff7ed",
+
+                                        borderRadius:
+                                          "8px",
+
                                         color:
-                                          "#6b7280",
+                                          "#9a3412",
 
                                         fontSize:
                                           "14px",
 
-                                        padding:
-                                          "10px 0",
-
                                       }}
-
                                     >
 
-                                      No se encontraron
-                                      productos para esta venta.
+                                      ⚠️ No hay productos registrados
+                                      para esta venta.
 
                                     </div>
 
@@ -523,179 +570,222 @@ export default function VentasUsuarioModal({
 
                                   : (
 
-                                    venta.productos.map(
 
-                                      (
-                                        producto
-                                      ) => (
-
-                                        <div
-
-                                          key={
-                                            producto.id
-                                          }
-
-                                          style={{
-
-                                            display:
-                                              "flex",
-
-                                            justifyContent:
-                                              "space-between",
-
-                                            alignItems:
-                                              "center",
-
-                                            padding:
-                                              "10px 0",
-
-                                            borderBottom:
-                                              "1px solid #e5e7eb",
-
-                                          }}
-
-                                        >
+                                    <div>
 
 
-                                          {/* PRODUCTO */}
+                                      {/* ========================= */}
+                                      {/* PRODUCTOS */}
+                                      {/* ========================= */}
 
-                                          <div>
+                                      {
+                                        venta.productos.map(
 
-                                            <strong>
-
-                                              {
-                                                producto.nombreProducto
-                                              }
-
-                                            </strong>
-
+                                          (
+                                            producto:
+                                              ProductoVenta
+                                          ) => (
 
                                             <div
+                                              key={
+                                                producto.id
+                                              }
 
                                               style={{
 
-                                                color:
-                                                  "#6b7280",
+                                                padding:
+                                                  "12px 0",
 
-                                                fontSize:
-                                                  "13px",
-
-                                                marginTop:
-                                                  "4px",
+                                                borderBottom:
+                                                  "1px solid #e5e7eb",
 
                                               }}
-
                                             >
 
-                                              {
-                                                formatoCOP(
-                                                  producto.precio
-                                                )
-                                              }
 
-                                              {" × "}
+                                              {/* FILA PRINCIPAL */}
 
-                                              {
-                                                producto.cantidad
-                                              }
+                                              <div
+                                                style={{
+
+                                                  display:
+                                                    "flex",
+
+                                                  justifyContent:
+                                                    "space-between",
+
+                                                  gap:
+                                                    "15px",
+
+                                                }}
+                                              >
+
+
+                                                {/* NOMBRE */}
+
+                                                <div
+                                                  style={{
+
+                                                    flex:
+                                                      1,
+
+                                                  }}
+                                                >
+
+                                                  <strong
+                                                    style={{
+
+                                                      color:
+                                                        "#111827",
+
+                                                    }}
+                                                  >
+
+                                                    🍺{" "}
+
+                                                    {
+                                                      producto
+                                                        .nombreProducto
+                                                    }
+
+                                                  </strong>
+
+
+                                                  <div
+                                                    style={{
+
+                                                      marginTop:
+                                                        "5px",
+
+                                                      fontSize:
+                                                        "13px",
+
+                                                      color:
+                                                        "#6b7280",
+
+                                                    }}
+                                                  >
+
+                                                    {
+                                                      formatoCOP(
+                                                        producto.precio
+                                                      )
+                                                    }
+
+                                                    {" "}
+
+                                                    ×
+
+                                                    {" "}
+
+                                                    {
+                                                      producto.cantidad
+                                                    }
+
+                                                  </div>
+
+                                                </div>
+
+
+                                                {/* SUBTOTAL */}
+
+                                                <strong
+                                                  style={{
+
+                                                    color:
+                                                      "#16a34a",
+
+                                                    whiteSpace:
+                                                      "nowrap",
+
+                                                  }}
+                                                >
+
+                                                  {
+                                                    formatoCOP(
+                                                      producto.subtotal
+                                                    )
+                                                  }
+
+                                                </strong>
+
+
+                                              </div>
 
                                             </div>
 
-                                          </div>
+                                          )
+
+                                        )
+                                      }
 
 
-                                          {/* SUBTOTAL */}
+                                      {/* ========================= */}
+                                      {/* TOTAL */}
+                                      {/* ========================= */}
 
-                                          <strong
+                                      <div
+                                        style={{
 
-                                            style={{
+                                          display:
+                                            "flex",
 
-                                              color:
-                                                "#166534",
+                                          justifyContent:
+                                            "space-between",
 
-                                            }}
+                                          alignItems:
+                                            "center",
 
-                                          >
+                                          paddingTop:
+                                            "16px",
 
-                                            {
-                                              formatoCOP(
+                                          marginTop:
+                                            "5px",
 
-                                                producto.subtotal
+                                          fontWeight:
+                                            700,
 
-                                              )
-                                            }
+                                          fontSize:
+                                            "16px",
 
-                                          </strong>
+                                        }}
+                                      >
+
+                                        <span>
+
+                                          TOTAL DE LA VENTA
+
+                                        </span>
 
 
-                                        </div>
+                                        <strong
+                                          style={{
 
-                                      )
+                                            color:
+                                              "#16a34a",
 
-                                    )
+                                            fontSize:
+                                              "18px",
+
+                                          }}
+                                        >
+
+                                          {
+                                            formatoCOP(
+                                              venta.total
+                                            )
+                                          }
+
+                                        </strong>
+
+                                      </div>
+
+
+                                    </div>
 
                                   )
 
                               }
-
-
-                              {/* ========================= */}
-                              {/* TOTAL */}
-                              {/* ========================= */}
-
-                              <div
-
-                                style={{
-
-                                  display:
-                                    "flex",
-
-                                  justifyContent:
-                                    "space-between",
-
-                                  marginTop:
-                                    "15px",
-
-                                  paddingTop:
-                                    "15px",
-
-                                  borderTop:
-                                    "2px solid #d1d5db",
-
-                                }}
-
-                              >
-
-                                <strong>
-
-                                  TOTAL DE LA VENTA
-
-                                </strong>
-
-
-                                <strong
-
-                                  style={{
-
-                                    color:
-                                      "#16a34a",
-
-                                    fontSize:
-                                      "18px",
-
-                                  }}
-
-                                >
-
-                                  {
-                                    formatoCOP(
-                                      venta.total
-                                    )
-                                  }
-
-                                </strong>
-
-                              </div>
 
 
                             </div>
@@ -726,7 +816,9 @@ export default function VentasUsuarioModal({
         {/* ================================================= */}
 
         <div
-          className="ventas-modal-footer"
+          className="
+            ventas-modal-footer
+          "
         >
 
           <span>
