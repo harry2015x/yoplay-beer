@@ -201,123 +201,115 @@ export default function MesaModal({
             )}
 
             {/* ================================= */}
-            {/* CARGANDO PRODUCTOS */}
+            {/* LISTA DE PRODUCTOS (ÚNICA ZONA CON SCROLL) */}
             {/* ================================= */}
 
-            {cargandoProductos && (
-              <div className="mesa-modal-estado-info">
-                Cargando productos...
-              </div>
-            )}
+            <div className="mesa-modal-productos-lista">
+              {/* CARGANDO PRODUCTOS */}
 
-            {/* ================================= */}
-            {/* SIN PRODUCTOS EN EL INVENTARIO */}
-            {/* ================================= */}
-
-            {!cargandoProductos && !hayProductosEnInventario && (
-              <div className="mesa-modal-estado-vacio">
-                No hay productos disponibles en el inventario.
-              </div>
-            )}
-
-            {/* ================================= */}
-            {/* SIN RESULTADOS DE BÚSQUEDA/FILTRO */}
-            {/* ================================= */}
-
-            {!cargandoProductos &&
-              hayProductosEnInventario &&
-              !hayResultados && (
-                <div className="mesa-modal-estado-vacio mesa-modal-estado-vacio--busqueda">
-                  <span
-                    className="mesa-modal-estado-vacio-icono"
-                    aria-hidden="true"
-                  >
-                    🔍
-                  </span>
-                  <strong>No encontramos productos.</strong>
-                  <span>
-                    Intenta con otro nombre o selecciona otra categoría.
-                  </span>
+              {cargandoProductos && (
+                <div className="mesa-modal-estado-info">
+                  Cargando productos...
                 </div>
               )}
 
-            {/* ================================= */}
-            {/* LISTA DE PRODUCTOS */}
-            {/* ================================= */}
+              {/* SIN PRODUCTOS EN EL INVENTARIO */}
 
-            {!cargandoProductos &&
-              hayResultados &&
-              productosFiltrados.map((producto) => (
-                <div key={producto.id} className="mesa-modal-producto-fila">
-                  {/* ========================= */}
-                  {/* INFORMACIÓN */}
-                  {/* ========================= */}
-
-                  <div className="mesa-modal-producto-info">
-                    {/* ======================= */}
-                    {/* IMAGEN */}
-                    {/* ======================= */}
-
-                    <div className="mesa-modal-producto-imagen">
-                      {producto.imagenUrl ? (
-                        <img
-                          src={producto.imagenUrl}
-                          alt={producto.nombre}
-                          className="mesa-modal-producto-imagen-img"
-                        />
-                      ) : (
-                        <span aria-hidden="true">📦</span>
-                      )}
-                    </div>
-
-                    {/* ======================= */}
-                    {/* NOMBRE Y PRECIO */}
-                    {/* ======================= */}
-
-                    <div className="mesa-modal-producto-texto">
-                      <strong className="mesa-modal-producto-nombre">
-                        {producto.nombre}
-                      </strong>
-
-                      {producto.categoria && (
-                        <div className="mesa-modal-producto-categoria">
-                          {producto.categoria}
-                        </div>
-                      )}
-
-                      <span className="mesa-modal-producto-precio">
-                        {formatoCOP(producto.precio)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* ========================= */}
-                  {/* BOTÓN AGREGAR */}
-                  {/* ========================= */}
-
-                  <button
-                    onClick={() => onAgregarProducto(producto)}
-                    aria-label={`Agregar ${producto.nombre} a la mesa ${mesa.numero}`}
-                    className="mesa-btn mesa-modal-agregar-btn"
-                  >
-                    + Agregar
-                  </button>
+              {!cargandoProductos && !hayProductosEnInventario && (
+                <div className="mesa-modal-estado-vacio">
+                  No hay productos disponibles en el inventario.
                 </div>
-              ))}
+              )}
+
+              {/* SIN RESULTADOS DE BÚSQUEDA/FILTRO */}
+
+              {!cargandoProductos &&
+                hayProductosEnInventario &&
+                !hayResultados && (
+                  <div className="mesa-modal-estado-vacio mesa-modal-estado-vacio--busqueda">
+                    <span
+                      className="mesa-modal-estado-vacio-icono"
+                      aria-hidden="true"
+                    >
+                      🔍
+                    </span>
+                    <strong>No encontramos productos.</strong>
+                    <span>
+                      Intenta con otro nombre o selecciona otra categoría.
+                    </span>
+                  </div>
+                )}
+
+              {/* LISTA */}
+
+              {!cargandoProductos &&
+                hayResultados &&
+                productosFiltrados.map((producto) => (
+                  <div key={producto.id} className="mesa-modal-producto-fila">
+                    {/* INFORMACIÓN */}
+
+                    <div className="mesa-modal-producto-info">
+                      {/* IMAGEN */}
+
+                      <div className="mesa-modal-producto-imagen">
+                        {producto.imagenUrl ? (
+                          <img
+                            src={producto.imagenUrl}
+                            alt={producto.nombre}
+                            className="mesa-modal-producto-imagen-img"
+                          />
+                        ) : (
+                          <span aria-hidden="true">📦</span>
+                        )}
+                      </div>
+
+                      {/* NOMBRE Y PRECIO */}
+
+                      <div className="mesa-modal-producto-texto">
+                        <strong className="mesa-modal-producto-nombre">
+                          {producto.nombre}
+                        </strong>
+
+                        {producto.categoria && (
+                          <div className="mesa-modal-producto-categoria">
+                            {producto.categoria}
+                          </div>
+                        )}
+
+                        <span className="mesa-modal-producto-precio">
+                          {formatoCOP(producto.precio)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* BOTÓN AGREGAR */}
+
+                    <button
+                      onClick={() => onAgregarProducto(producto)}
+                      aria-label={`Agregar ${producto.nombre} a la mesa ${mesa.numero}`}
+                      className="mesa-btn mesa-modal-agregar-btn"
+                    >
+                      + Agregar
+                    </button>
+                  </div>
+                ))}
+            </div>
           </div>
 
           {/* ===================================== */}
           {/* PEDIDO ACTUAL */}
           {/* ===================================== */}
 
-          <PedidoActual
-            productos={mesa.productos}
-            total={mesa.total}
-            onAumentar={onAumentar}
-            onDisminuir={onDisminuir}
-            onEliminar={onEliminar}
-            onSolicitarCierre={() => onSolicitarCierre(mesa)}
-          />
+          <div className="mesa-modal-pedido-col">
+            <PedidoActual
+              productos={mesa.productos}
+              total={mesa.total}
+              onAumentar={onAumentar}
+              onDisminuir={onDisminuir}
+              onEliminar={onEliminar}
+              onSolicitarCierre={() => onSolicitarCierre(mesa)}
+            />
+          </div>
         </div>
       </div>
 
@@ -338,7 +330,7 @@ export default function MesaModal({
           border-radius: 18px;
           width: 100%;
           max-width: 1000px;
-          max-height: 88vh;
+          max-height: 85vh;
           display: flex;
           flex-direction: column;
           overflow: hidden;
@@ -378,17 +370,43 @@ export default function MesaModal({
           flex-shrink: 0;
         }
 
+        /* ============================================================
+           CONTENIDO: fila flex con dos columnas de altura acotada.
+           Ninguna scrollea aquí — cada columna scrollea por dentro.
+        ============================================================ */
+
         .mesa-modal-contenido {
-          display: grid;
-          grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.2fr);
+          display: flex;
+          flex-direction: row;
+          flex: 1;
+          min-height: 0;
           gap: 20px;
           padding: 20px 24px;
-          overflow-y: auto;
-          overflow-x: hidden;
+          overflow: hidden;
+        }
+
+        .mesa-modal-productos {
+          flex: 1 1 280px;
+          min-width: 280px;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+
+        .mesa-modal-pedido-col {
+          flex: 1.2 1 320px;
+          min-width: 320px;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
         }
 
         .mesa-modal-seccion-titulo {
           margin-top: 0;
+          margin-bottom: 12px;
+          flex-shrink: 0;
         }
 
         .mesa-modal-buscador {
@@ -401,6 +419,7 @@ export default function MesaModal({
           font-size: 14.5px;
           color: #111827;
           background: #fff;
+          flex-shrink: 0;
         }
         .mesa-modal-buscador:focus-visible {
           outline: 2px solid #2563eb;
@@ -419,6 +438,7 @@ export default function MesaModal({
           padding-bottom: 10px;
           margin-bottom: 6px;
           scrollbar-width: thin;
+          flex-shrink: 0;
         }
 
         .mesa-modal-categoria-btn {
@@ -436,6 +456,14 @@ export default function MesaModal({
           background: #16a34a;
           border-color: #16a34a;
           color: #fff;
+        }
+
+        /* Única zona con scroll interno del panel izquierdo */
+        .mesa-modal-productos-lista {
+          flex: 1;
+          min-height: 0;
+          overflow-y: auto;
+          padding-right: 4px;
         }
 
         .mesa-modal-estado-info,
@@ -543,8 +571,11 @@ export default function MesaModal({
         }
 
         /* ============================================================
-           TABLET / MÓVIL (≤768px): una sola columna, modal a pantalla
-           completa, controles con área táctil cómoda.
+           TABLET / MÓVIL (≤768px): una sola columna vertical.
+           Productos y Pedido se reparten el alto disponible al 50/50,
+           cada uno con su propio scroll interno, para que el botón
+           "Cobrar" quede siempre visible sin desplazarse por todo
+           el catálogo.
         ============================================================ */
 
         @media (max-width: 768px) {
@@ -573,9 +604,15 @@ export default function MesaModal({
           }
 
           .mesa-modal-contenido {
-            grid-template-columns: 1fr;
+            flex-direction: column;
             padding: 16px;
-            gap: 24px;
+            gap: 16px;
+          }
+
+          .mesa-modal-productos,
+          .mesa-modal-pedido-col {
+            flex: 1 1 0;
+            min-width: 0;
           }
 
           .mesa-modal-agregar-btn {

@@ -28,11 +28,12 @@ export default function PedidoActual({
         display: "flex",
         flexDirection: "column",
         height: "100%",
+        minHeight: 0,
       }}
     >
-      <h3 style={{ marginTop: 0 }}>🧾 Pedido actual</h3>
+      <h3 style={{ marginTop: 0, flexShrink: 0 }}>🧾 Pedido actual</h3>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: "6px" }}>
         {productos.length === 0 ? (
           <p style={{ color: "#6b7280" }}>No hay productos agregados todavía.</p>
         ) : (
@@ -117,43 +118,41 @@ export default function PedidoActual({
         )}
       </div>
 
-      <div
-        style={{
-          marginTop: "16px",
-          paddingTop: "16px",
-          borderTop: "2px solid #e5e7eb",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <h2 style={{ margin: 0, fontSize: "18px" }}>Total</h2>
-        <h2 style={{ margin: 0, color: "#16a34a" }}>{formatoCOP(total)}</h2>
-      </div>
+      <div style={{ flexShrink: 0 }}>
+        <div
+          style={{
+            marginTop: "16px",
+            paddingTop: "16px",
+            borderTop: "2px solid #e5e7eb",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: "18px" }}>Total</h2>
+          <h2 style={{ margin: 0, color: "#16a34a" }}>{formatoCOP(total)}</h2>
+        </div>
 
-      <button
-        onClick={onSolicitarCierre}
-        disabled={total <= 0}
-        className="mesa-btn"
-        style={{
-          width: "100%",
-          marginTop: "14px",
-          background: total <= 0 ? "#fca5a5" : "#ef4444",
-          color: "white",
-          border: "none",
-          padding: "14px",
-          borderRadius: "8px",
-          cursor: total <= 0 ? "not-allowed" : "pointer",
-          fontWeight: 700,
-          fontSize: "16px",
-        }}
-      >
-        Cobrar / Cerrar cuenta
-      </button>
+        <button
+          onClick={onSolicitarCierre}
+          disabled={total <= 0}
+          className="mesa-btn"
+          style={{
+            width: "100%",
+            marginTop: "14px",
+            background: total <= 0 ? "#fca5a5" : "#ef4444",
+            color: "white",
+            border: "none",
+            padding: "14px",
+            borderRadius: "8px",
+            cursor: total <= 0 ? "not-allowed" : "pointer",
+            fontWeight: 700,
+            fontSize: "16px",
+          }}
+        >
+          Cobrar / Cerrar cuenta
+        </button>
+      </div>
     </div>
   );
 }
-
-
-
-
