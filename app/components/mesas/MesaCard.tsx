@@ -124,23 +124,22 @@ export default function MesaCard({ mesa, onAbrir, onGestionar, onSolicitarCierre
           </button>
 
           <button
-            onClick={() => onSolicitarCierre(mesa)}
-            disabled={mesa.total <= 0}
-            aria-label={`Cerrar cuenta de la mesa ${mesa.numero}`}
-            className="mesa-btn"
-            style={{
-              width: "100%",
-              background: mesa.total <= 0 ? "#fca5a5" : "#ef4444",
-              color: "white",
-              border: "none",
-              padding: "12px",
-              borderRadius: "8px",
-              cursor: mesa.total <= 0 ? "not-allowed" : "pointer",
-              fontWeight: 700,
-            }}
-          >
-            Cerrar cuenta
-          </button>
+  onClick={() => onSolicitarCierre(mesa)}
+  aria-label={`Cerrar cuenta de la mesa ${mesa.numero}`}
+  className="mesa-btn"
+  style={{
+    width: "100%",
+    background: "#ef4444",
+    color: "white",
+    border: "none",
+    padding: "12px",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontWeight: 700,
+  }}
+>
+  Cerrar cuenta
+</button>
         </div>
       )}
     </article>
