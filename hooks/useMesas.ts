@@ -536,6 +536,132 @@ export function useMesas() {
     );
   }
 
+// ============================================================
+// LIBERAR MESA SIN REGISTRAR VENTA
+// ============================================================
+
+async function liberarMesa(
+  id: number
+): Promise<boolean> {
+
+  // ==========================================================
+  // BUSCAR LA MESA
+  // ==========================================================
+
+  const mesa =
+    mesas.find(
+      (m) => m.id === id
+    );
+
+  if (!mesa) {
+
+    mostrarNotificacion(
+      "error",
+      "No se encontró la mesa."
+    );
+
+    return false;
+
+  }
+
+
+  // ==========================================================
+  // ACTUALIZAR MESA EN SUPABASE
+  // ==========================================================
+
+  const {
+    error,
+  } =
+    await supabase
+      .from("mesas")
+      .update({
+        estado: "libre",
+      })
+      .eq(
+        "id",
+        id
+      );
+
+
+  // ==========================================================
+  // ERROR
+  // ==========================================================
+
+  if (error) {
+
+    console.error(
+      "Error liberando mesa:",
+      error
+    );
+
+    mostrarNotificacion(
+      "error",
+      "No se pudo liberar la mesa. Intenta nuevamente."
+    );
+
+    return false;
+
+  }
+
+
+  // ==========================================================
+  // ACTUALIZAR ESTADO LOCAL
+  // ==========================================================
+
+  setMesas((prev) =>
+    prev.map((mesa) =>
+
+      mesa.id === id
+
+        ? {
+
+            ...mesa,
+
+            estado:
+              "Libre",
+
+            productos:
+              [],
+
+            total:
+              0,
+
+            abiertaDesde:
+              null,
+
+          }
+
+        : mesa
+
+    )
+  );
+
+
+  // ==========================================================
+  // CERRAR MODAL
+  // ==========================================================
+
+  setMesaSeleccionadaId(
+    null
+  );
+
+
+  // ==========================================================
+  // NOTIFICACIÓN
+  // ==========================================================
+
+  mostrarNotificacion(
+    "success",
+    `Mesa ${mesa.numero} liberada correctamente. No se registró ninguna venta.`
+  );
+
+
+  return true;
+
+}
+
+
+
   // ============================================================
   // CERRAR MESA Y REGISTRAR VENTA
   // ============================================================
@@ -957,14 +1083,16 @@ export function useMesas() {
     cargarVentas,
 
     // ==========================================================
-    // MESAS
-    // ==========================================================
+// MESAS
+// ==========================================================
 
-    abrirMesa,
+abrirMesa,
 
-    seleccionarMesa,
+seleccionarMesa,
 
-    cerrarModal,
+cerrarModal,
+
+liberarMesa,
 
     // ==========================================================
     // PEDIDOS

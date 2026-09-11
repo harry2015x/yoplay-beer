@@ -91,6 +91,7 @@ export default function MesasModule({
     disminuirCantidad,
     eliminarProducto,
     cerrarMesa,
+    liberarMesa,
   } = estado;
 
   // ============================================================
@@ -127,19 +128,56 @@ export default function MesasModule({
   // CONFIRMAR CIERRE
   // ============================================================
 
-  async function confirmarCierre() {
-    if (!mesaAConfirmar) return;
+// ============================================================
+// CONFIRMAR ACCIÓN DE LA MESA
+// ============================================================
 
-    const exito =
-      await cerrarMesa(
-        mesaAConfirmar.id
-      );
+async function confirmarCierre() {
 
-    if (exito) {
-      setMesaAConfirmar(null);
-      cerrarModal();
-    }
+  if (!mesaAConfirmar) return;
+
+
+  // ==========================================================
+  // SI LA MESA ESTÁ VACÍA
+  //
+  // Se libera sin registrar una venta
+  // ==========================================================
+
+  const mesaVacia =
+
+    mesaAConfirmar.productos.length === 0 ||
+
+    mesaAConfirmar.total <= 0;
+
+
+  const exito =
+
+    mesaVacia
+
+      ? await liberarMesa(
+          mesaAConfirmar.id
+        )
+
+      : await cerrarMesa(
+          mesaAConfirmar.id
+        );
+
+
+  // ==========================================================
+  // SI LA OPERACIÓN FUE EXITOSA
+  // ==========================================================
+
+  if (exito) {
+
+    setMesaAConfirmar(
+      null
+    );
+
+    cerrarModal();
+
   }
+
+}
 
   // ============================================================
   // SOLICITAR CIERRE
@@ -484,24 +522,69 @@ export default function MesasModule({
         }
 
         titulo={
-          mesaAConfirmar
-            ? `Cerrar cuenta — Mesa ${mesaAConfirmar.numero}`
-            : ""
-        }
 
+          mesaAConfirmar
+        
+            ? (
+        
+                mesaAConfirmar.productos.length === 0 ||
+        
+                mesaAConfirmar.total <= 0
+        
+              )
+        
+                ? `Liberar mesa — Mesa ${mesaAConfirmar.numero}`
+        
+                : `Cerrar cuenta — Mesa ${mesaAConfirmar.numero}`
+        
+            : ""
+        
+        }
         mensaje={
+
           mesaAConfirmar
-            ? `Productos: ${mesaAConfirmar.productos.length}
-
-Total: ${formatoCOP(
-  mesaAConfirmar.total
-)}
-
-¿Deseas confirmar el pago y cerrar esta mesa?`
+        
+            ? (
+        
+                mesaAConfirmar.productos.length === 0 ||
+        
+                mesaAConfirmar.total <= 0
+        
+              )
+        
+                ? `Esta mesa no tiene productos registrados.
+        
+        No se creará ninguna venta.
+        
+        ¿Deseas liberar la Mesa ${mesaAConfirmar.numero}?`
+        
+                : `Productos: ${mesaAConfirmar.productos.length}
+        
+        Total: ${formatoCOP(
+          mesaAConfirmar.total
+        )}
+        
+        ¿Deseas confirmar el pago y cerrar esta mesa?`
+        
             : ""
+        
         }
 
-        etiquetaConfirmar="Confirmar pago"
+        etiquetaConfirmar={
+
+          mesaAConfirmar &&
+        
+          (
+            mesaAConfirmar.productos.length === 0 ||
+        
+            mesaAConfirmar.total <= 0
+          )
+        
+            ? "Liberar mesa"
+        
+            : "Confirmar pago"
+        
+        }
 
         etiquetaCancelar="Cancelar"
 
