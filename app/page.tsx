@@ -251,7 +251,7 @@ export default function Home() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={LOGO_IMAGE_URL} alt="YOPlay Beer" className="marca__logo" />
           <div>
-            <h1 className="marca__titulo">YOPlay Beer</h1>
+            <h1 className="marca__titulo">YOPLAY BEER</h1>
             <p className="marca__subtitulo">Sistema de ventas e inventario</p>
           </div>
         </div>
@@ -362,7 +362,7 @@ export default function Home() {
               </div>
 
               <div className="bienvenida">
-                <h3>Bienvenido a YOPlay Beer 🍺</h3>
+                <h3>Bienvenido a YOLAY BEER 🍺</h3>
                 <p>
                   Desde este sistema podrás administrar las ventas, mesas, inventario y
                   reportes del negocio.
