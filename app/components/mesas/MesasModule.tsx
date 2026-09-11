@@ -166,7 +166,7 @@ export default function MesasModule({
     // LIBERAR UNA MESA VACÍA
     // ========================================================
 
-    liberarMesaVacia,
+    liberarMesa,
 
 
     // ========================================================
@@ -293,7 +293,7 @@ export default function MesasModule({
     if (mesaVacia) {
 
 
-      exito = await liberarMesaVacia(
+      exito = await liberarMesa(
 
         mesaAConfirmar.id
 
