@@ -659,7 +659,144 @@ async function liberarMesa(
   return true;
 
 }
+  // ============================================================
+  // LIBERAR MESA VACÍA
+  // ============================================================
 
+  async function liberarMesaVacia(
+    id: number
+  ): Promise<boolean> {
+
+    // ==========================================================
+    // BUSCAR LA MESA
+    // ==========================================================
+
+    const mesa =
+      mesas.find(
+        (m) => m.id === id
+      );
+
+    if (!mesa) {
+
+      mostrarNotificacion(
+        "error",
+        "No se encontró la mesa."
+      );
+
+      return false;
+
+    }
+
+
+    // ==========================================================
+    // VALIDAR QUE LA MESA NO TENGA PRODUCTOS
+    // ==========================================================
+
+    if (
+      mesa.productos.length > 0 ||
+      mesa.total > 0
+    ) {
+
+      mostrarNotificacion(
+        "error",
+        "Esta mesa tiene productos. Debe cerrarse como una venta."
+      );
+
+      return false;
+
+    }
+
+
+    // ==========================================================
+    // LIBERAR MESA EN SUPABASE
+    // ==========================================================
+
+    const {
+      error: errorMesa,
+    } =
+      await supabase
+        .from("mesas")
+        .update({
+          estado: "libre",
+        })
+        .eq(
+          "id",
+          mesa.id
+        );
+
+
+    // ==========================================================
+    // ERROR
+    // ==========================================================
+
+    if (errorMesa) {
+
+      console.error(
+        "Error liberando mesa vacía:",
+        errorMesa
+      );
+
+
+      mostrarNotificacion(
+        "error",
+        "No se pudo liberar la mesa."
+      );
+
+
+      return false;
+
+    }
+
+
+    // ==========================================================
+    // ACTUALIZAR ESTADO LOCAL
+    // ==========================================================
+
+    setMesas((prev) =>
+      prev.map((m) =>
+        m.id === id
+          ? {
+              ...m,
+
+              estado:
+                "Libre",
+
+              productos:
+                [],
+
+              total:
+                0,
+
+              abiertaDesde:
+                null,
+            }
+          : m
+      )
+    );
+
+
+    // ==========================================================
+    // CERRAR MODAL
+    // ==========================================================
+
+    setMesaSeleccionadaId(
+      null
+    );
+
+
+    // ==========================================================
+    // NOTIFICACIÓN
+    // ==========================================================
+
+    mostrarNotificacion(
+      "success",
+      `Mesa ${mesa.numero} liberada correctamente.`
+    );
+
+
+    return true;
+
+  }
 
 
   // ============================================================
@@ -1106,14 +1243,22 @@ liberarMesa,
 
     eliminarProducto,
 
+      // ==========================================================
+    // MESAS VACÍAS
+    // ==========================================================
+
+    liberarMesaVacia,
+
+
     // ==========================================================
     // VENTAS
     // ==========================================================
 
     cerrarMesa,
-  };
-}
 
+  };
+
+}
 // ============================================================
 // TIPO DEL RESULTADO DEL HOOK
 // ============================================================
