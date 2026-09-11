@@ -466,7 +466,7 @@ export default function Home() {
 
             }}
           >
-            🍺 YO PLAY BEER
+            🍺 YOPLAY BEER
           </h1>
 
 
