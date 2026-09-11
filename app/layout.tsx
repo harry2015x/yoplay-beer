@@ -26,6 +26,11 @@ const geistMono = Geist_Mono({
 // CONFIGURACIÓN DEL LOGO
 // ============================================================
 
+// Este logo se utiliza para Open Graph y redes sociales.
+// El favicon se carga automáticamente desde:
+//
+// app/icon.png
+//
 const LOGO_IMAGE_URL =
   "https://res.cloudinary.com/dv1gz4eqo/image/upload/v1789083650/LOGO-11_oeaddu.png";
 
@@ -36,7 +41,7 @@ const LOGO_IMAGE_URL =
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ||
-  "http://localhost:3000";
+  "https://yoplay-beer.vercel.app";
 
 
 // ============================================================
@@ -106,18 +111,16 @@ export const metadata: Metadata = {
   ],
 
 
-  icons: {
-
-    icon:
-      LOGO_IMAGE_URL,
-
-    shortcut:
-      LOGO_IMAGE_URL,
-
-    apple:
-      LOGO_IMAGE_URL,
-
-  },
+  // ==========================================================
+  // FAVICON
+  // ==========================================================
+  //
+  // Next.js detecta automáticamente:
+  //
+  // app/icon.png
+  //
+  // No es necesario declarar "icons" aquí.
+  // ==========================================================
 
 
   openGraph: {
