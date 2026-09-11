@@ -15,6 +15,7 @@ import MesasModule from "./components/mesas/MesasModule";
 import InventarioModule from "./components/inventario/InventarioModule";
 import UsuariosModule from "./components/usuarios/UsuariosModule";
 import VentasModule from "./components/ventas/VentasModule";
+import ReportesModule from "./components/reportes/ReportesModule";
 
 const LOGO_IMAGE_URL =
   "https://res.cloudinary.com/dv1gz4eqo/image/upload/v1789083650/LOGO-11_oeaddu.png";
@@ -407,12 +408,7 @@ export default function Home() {
           {/* REPORTES */}
           {/* ================================================ */}
 
-          {seccion === "Reportes" && esAdministrador && (
-            <div className="panel">
-              <h2>📊 Reportes</h2>
-              <p>Este módulo será desarrollado próximamente.</p>
-            </div>
-          )}
+          {seccion === "Reportes" && esAdministrador && <ReportesModule />}
 
           {/* ================================================ */}
           {/* USUARIOS */}
