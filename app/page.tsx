@@ -101,7 +101,7 @@ export default function Home() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={LOGO_IMAGE_URL} alt="YOPlay Beer" className="pantalla-carga__logo" />
         </div>
-        <h2 className="pantalla-carga__titulo">YOPlay Beer</h2>
+        <h2 className="pantalla-carga__titulo">YOPLAY BEER</h2>
         <p className="pantalla-carga__subtitulo">Cargando sistema...</p>
 
         <style jsx>{`
