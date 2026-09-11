@@ -402,7 +402,12 @@ export default function Home() {
           {/* INVENTARIO */}
           {/* ================================================ */}
 
-          {seccion === "Inventario" && <InventarioModule estado={inventarioEstado} />}
+          {seccion === "Inventario" && (
+  <InventarioModule
+    estado={inventarioEstado}
+    esAdministrador={esAdministrador}
+  />
+)}
 
           {/* ================================================ */}
           {/* REPORTES */}

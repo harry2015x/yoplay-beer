@@ -10,13 +10,45 @@ import {
 import { formatoCOP } from "../../../lib/formato";
 
 type Props = {
+
   producto: ProductoInventario;
 
-  onEntrada: (producto: ProductoInventario) => void;
-  onSalida: (producto: ProductoInventario) => void;
-  onAjustar: (producto: ProductoInventario) => void;
-  onEditar: (producto: ProductoInventario) => void;
-  onEliminar: (producto: ProductoInventario) => void;
+
+  // ==========================================================
+  // PERMISOS
+  // ==========================================================
+
+  esAdministrador: boolean;
+
+
+  // ==========================================================
+  // ACCIONES
+  // ==========================================================
+
+  onEntrada: (
+    producto: ProductoInventario
+  ) => void;
+
+
+  onSalida: (
+    producto: ProductoInventario
+  ) => void;
+
+
+  onAjustar: (
+    producto: ProductoInventario
+  ) => void;
+
+
+  onEditar: (
+    producto: ProductoInventario
+  ) => void;
+
+
+  onEliminar: (
+    producto: ProductoInventario
+  ) => void;
+
 };
 
 const ESTADO_COLOR: Record<string, string> = {
@@ -111,12 +143,21 @@ function BotonAccion({
 }
 
 export default function ProductoCard({
+
   producto,
+
+  esAdministrador,
+
   onEntrada,
+
   onSalida,
+
   onAjustar,
+
   onEditar,
+
   onEliminar,
+
 }: Props) {
   const [hover, setHover] = useState(false);
 
@@ -527,74 +568,150 @@ export default function ProductoCard({
         </div>
       </div>
 
-      {/* ============================================== */}
-      {/* ACCIONES */}
-      {/* ============================================== */}
+     {/* ============================================== */}
+{/* ACCIONES */}
+{/* ============================================== */}
 
-      <div
-        style={{
-          display: "flex",
+{esAdministrador && (
 
-          flexWrap: "wrap",
+<div
+  style={{
 
-          gap: 8,
+    display: "flex",
 
-          marginLeft: "auto",
+    flexWrap: "wrap",
 
-          justifyContent:
-            "flex-end",
-        }}
-      >
-        <BotonAccion
-          etiqueta="Entrada"
-          icono="📥"
-          color="#16a34a"
-          onClick={() =>
-            onEntrada(producto)
-          }
-          ariaLabel={`Registrar entrada para ${producto.nombre}`}
-        />
+    gap: 8,
 
-        <BotonAccion
-          etiqueta="Salida"
-          icono="➖"
-          color="#ef4444"
-          onClick={() =>
-            onSalida(producto)
-          }
-          ariaLabel={`Registrar salida para ${producto.nombre}`}
-        />
+    marginLeft: "auto",
 
-        <BotonAccion
-          etiqueta="Ajustar"
-          icono="⚙️"
-          color="#2563eb"
-          onClick={() =>
-            onAjustar(producto)
-          }
-          ariaLabel={`Ajustar stock de ${producto.nombre}`}
-        />
+    justifyContent:
+      "flex-end",
 
-        <BotonAccion
-          etiqueta="Editar"
-          icono="✏️"
-          color="#172131"
-          onClick={() =>
-            onEditar(producto)
-          }
-          ariaLabel={`Editar ${producto.nombre}`}
-        />
+  }}
+>
 
-        <BotonAccion
-          etiqueta="Eliminar"
-          icono="🗑️"
-          color="#ef4444"
-          onClick={() =>
-            onEliminar(producto)
-          }
-          ariaLabel={`Eliminar ${producto.nombre}`}
-        />
-      </div>
+
+  {/* ========================================== */}
+  {/* ENTRADA */}
+  {/* ========================================== */}
+
+  <BotonAccion
+
+    etiqueta="Entrada"
+
+    icono="📥"
+
+    color="#16a34a"
+
+    onClick={() =>
+
+      onEntrada(producto)
+
+    }
+
+    ariaLabel={
+      `Registrar entrada para ${producto.nombre}`
+    }
+
+  />
+
+
+  {/* ========================================== */}
+  {/* SALIDA */}
+  {/* ========================================== */}
+
+  <BotonAccion
+
+    etiqueta="Salida"
+
+    icono="➖"
+
+    color="#ef4444"
+
+    onClick={() =>
+
+      onSalida(producto)
+
+    }
+
+    ariaLabel={
+      `Registrar salida para ${producto.nombre}`
+    }
+
+  />
+
+
+  {/* ========================================== */}
+  {/* AJUSTAR */}
+  {/* ========================================== */}
+
+  <BotonAccion
+
+    etiqueta="Ajustar"
+
+    icono="⚙️"
+
+    color="#2563eb"
+
+    onClick={() =>
+
+      onAjustar(producto)
+
+    }
+
+    ariaLabel={
+      `Ajustar stock de ${producto.nombre}`
+    }
+
+  />
+
+
+  {/* ========================================== */}
+  {/* EDITAR */}
+  {/* ========================================== */}
+
+  <BotonAccion
+
+    etiqueta="Editar"
+
+    icono="✏️"
+
+    color="#172131"
+
+    onClick={() =>
+
+      onEditar(producto)
+
+    }
+
+    ariaLabel={
+      `Editar ${producto.nombre}`
+    }
+
+  />
+
+
+  {/* ========================================== */}
+  {/* ELIMINAR */}
+  {/* ========================================== */}
+
+  <BotonAccion
+    etiqueta="Eliminar"
+    icono="🗑️"
+    color="#ef4444"
+    onClick={() =>
+      onEliminar(producto)
+    }
+    ariaLabel={
+      `Eliminar ${producto.nombre}`
+    }
+  />
+
+</div>
+
+)}
+
     </div>
   );
 }
