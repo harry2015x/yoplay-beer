@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   FiltroStock,
@@ -31,6 +31,13 @@ import HistorialMovimientos from "./HistorialMovimientos";
 import NotificacionInventario from "./NotificacionInventario";
 
 import styles from "./inventario.module.css";
+
+
+// ============================================================
+// PAGINACIÓN
+// ============================================================
+
+const PRODUCTOS_POR_PAGINA = 15;
 
 
 // ============================================================
@@ -126,6 +133,35 @@ export default function InventarioModule({
   ] = useState<FiltroStock>("todos");
 
 
+  const [
+
+    categoriaSeleccionada,
+
+    setCategoriaSeleccionada,
+
+  ] = useState("Todos");
+
+
+  const [
+
+    paginaActual,
+
+    setPaginaActual,
+
+  ] = useState(1);
+
+
+  // ==========================================================
+  // REFERENCIA AL LISTADO
+  //
+  // SE USA PARA HACER SCROLL SUAVE
+  // AL CAMBIAR DE PÁGINA
+  // ==========================================================
+
+  const listaProductosRef =
+    useRef<HTMLDivElement>(null);
+
+
   // ==========================================================
   // MODALES
   // ==========================================================
@@ -164,6 +200,52 @@ export default function InventarioModule({
     setMovimientoActual,
 
   ] = useState<MovimientoContexto | null>(null);
+
+
+  // ==========================================================
+  // CATEGORÍAS
+  //
+  // SE OBTIENEN DINÁMICAMENTE DESDE LOS PRODUCTOS.
+  // NO SE USA UNA LISTA FIJA.
+  // ==========================================================
+
+  const categorias = useMemo(() => {
+
+    return [
+
+      "Todos",
+
+      ...Array.from(
+
+        new Set(
+
+          productos
+
+            .map(
+
+              (producto) => producto.categoria
+
+            )
+
+            .filter(
+
+              (categoria): categoria is string =>
+
+                Boolean(categoria)
+
+            )
+
+        )
+
+      ),
+
+    ];
+
+  }, [
+
+    productos,
+
+  ]);
 
 
   // ==========================================================
@@ -208,6 +290,32 @@ export default function InventarioModule({
       if (!coincideBusqueda) {
 
         return false;
+
+      }
+
+
+      // ======================================================
+      // CATEGORÍA
+      // ======================================================
+
+      if (
+
+        categoriaSeleccionada !== "Todos"
+
+      ) {
+
+        const coincideCategoria =
+
+          (
+            producto.categoria ?? ""
+          ) === categoriaSeleccionada;
+
+
+        if (!coincideCategoria) {
+
+          return false;
+
+        }
 
       }
 
@@ -272,9 +380,194 @@ export default function InventarioModule({
 
     busqueda,
 
+    categoriaSeleccionada,
+
     filtroStock,
 
   ]);
+
+
+  // ==========================================================
+  // PAGINACIÓN
+  // ==========================================================
+
+  const totalPaginas = useMemo(() => {
+
+    return Math.max(
+
+      1,
+
+      Math.ceil(
+
+        productosFiltrados.length /
+          PRODUCTOS_POR_PAGINA
+
+      )
+
+    );
+
+  }, [
+
+    productosFiltrados,
+
+  ]);
+
+
+  const productosPaginados = useMemo(() => {
+
+    const inicio =
+
+      (paginaActual - 1) *
+      PRODUCTOS_POR_PAGINA;
+
+
+    const fin =
+
+      inicio +
+      PRODUCTOS_POR_PAGINA;
+
+
+    return productosFiltrados.slice(
+
+      inicio,
+
+      fin
+
+    );
+
+  }, [
+
+    productosFiltrados,
+
+    paginaActual,
+
+  ]);
+
+
+  // ==========================================================
+  // EVITAR PÁGINA INVÁLIDA
+  //
+  // SI LOS PRODUCTOS FILTRADOS CAMBIAN (POR EJEMPLO, AL
+  // ELIMINAR UN PRODUCTO) Y LA PÁGINA ACTUAL YA NO EXISTE,
+  // SE AJUSTA A LA ÚLTIMA PÁGINA VÁLIDA.
+  // ==========================================================
+
+  useEffect(() => {
+
+    setPaginaActual((actual) =>
+
+      actual > totalPaginas
+        ? totalPaginas
+        : actual
+
+    );
+
+  }, [
+
+    totalPaginas,
+
+  ]);
+
+
+  // ==========================================================
+  // CAMBIO DE BÚSQUEDA
+  //
+  // VUELVE A LA PÁGINA 1
+  // ==========================================================
+
+  function manejarCambioBusqueda(
+
+    valor: string
+
+  ) {
+
+    setBusqueda(valor);
+
+    setPaginaActual(1);
+
+  }
+
+
+  // ==========================================================
+  // CAMBIO DE CATEGORÍA
+  //
+  // VUELVE A LA PÁGINA 1
+  // ==========================================================
+
+  function manejarCambioCategoria(
+
+    valor: string
+
+  ) {
+
+    setCategoriaSeleccionada(valor);
+
+    setPaginaActual(1);
+
+  }
+
+
+  // ==========================================================
+  // CAMBIO DE FILTRO DE STOCK
+  //
+  // VUELVE A LA PÁGINA 1
+  // ==========================================================
+
+  function manejarCambioFiltroStock(
+
+    valor: FiltroStock
+
+  ) {
+
+    setFiltroStock(valor);
+
+    setPaginaActual(1);
+
+  }
+
+
+  // ==========================================================
+  // NAVEGACIÓN DE PÁGINA
+  // ==========================================================
+
+  function irPaginaAnterior() {
+
+    setPaginaActual((actual) =>
+
+      Math.max(1, actual - 1)
+
+    );
+
+
+    listaProductosRef.current?.scrollIntoView({
+
+      behavior: "smooth",
+
+      block: "start",
+
+    });
+
+  }
+
+
+  function irPaginaSiguiente() {
+
+    setPaginaActual((actual) =>
+
+      Math.min(totalPaginas, actual + 1)
+
+    );
+
+
+    listaProductosRef.current?.scrollIntoView({
+
+      behavior: "smooth",
+
+      block: "start",
+
+    });
+
+  }
 
 
   // ==========================================================
@@ -447,21 +740,7 @@ export default function InventarioModule({
 
       <div
 
-        style={{
-
-          display: "flex",
-
-          flexWrap: "wrap",
-
-          alignItems: "center",
-
-          justifyContent: "space-between",
-
-          gap: 16,
-
-          marginBottom: 20,
-
-        }}
+        className={styles.header}
 
       >
 
@@ -620,11 +899,17 @@ export default function InventarioModule({
 
         busqueda={busqueda}
 
-        onBusquedaChange={setBusqueda}
+        onBusquedaChange={manejarCambioBusqueda}
 
         filtro={filtroStock}
 
-        onFiltroChange={setFiltroStock}
+        onFiltroChange={manejarCambioFiltroStock}
+
+        categorias={categorias}
+
+        categoriaSeleccionada={categoriaSeleccionada}
+
+        onCategoriaChange={manejarCambioCategoria}
 
       />
 
@@ -975,6 +1260,8 @@ export default function InventarioModule({
 
           <div
 
+            ref={listaProductosRef}
+
             style={{
 
               display: "flex",
@@ -987,7 +1274,7 @@ export default function InventarioModule({
 
           >
 
-            {productosFiltrados.map(
+            {productosPaginados.map(
 
               (producto) => (
 
@@ -1065,6 +1352,109 @@ export default function InventarioModule({
             )}
 
           </div>
+
+        )}
+
+
+      {/* ===================================================== */}
+      {/* CONTADOR DE RESULTADOS Y PAGINACIÓN */}
+      {/* ===================================================== */}
+
+      {!cargandoProductos &&
+
+        !errorProductos &&
+
+        productosFiltrados.length > 0 && (
+
+          <>
+
+            <p
+
+              className={styles.contadorResultados}
+
+            >
+
+              Mostrando{" "}
+
+              {
+                (paginaActual - 1) *
+                  PRODUCTOS_POR_PAGINA +
+                  1
+              }
+              –
+              {
+                Math.min(
+                  paginaActual *
+                    PRODUCTOS_POR_PAGINA,
+                  productosFiltrados.length
+                )
+              }
+              {" "}de {productosFiltrados.length} productos
+
+            </p>
+
+
+            <div
+
+              className={styles.paginacion}
+
+            >
+
+              <button
+
+                type="button"
+
+                onClick={irPaginaAnterior}
+
+                disabled={paginaActual <= 1}
+
+                className={styles.paginacionBoton}
+
+              >
+
+                ← Anterior
+
+              </button>
+
+
+              <span
+
+                style={{
+
+                  fontSize: 13,
+
+                  fontWeight: 700,
+
+                  color: "#374151",
+
+                }}
+
+              >
+
+                Página {paginaActual} de {totalPaginas}
+
+              </span>
+
+
+              <button
+
+                type="button"
+
+                onClick={irPaginaSiguiente}
+
+                disabled={paginaActual >= totalPaginas}
+
+                className={styles.paginacionBoton}
+
+              >
+
+                Siguiente →
+
+              </button>
+
+            </div>
+
+          </>
 
         )}
 

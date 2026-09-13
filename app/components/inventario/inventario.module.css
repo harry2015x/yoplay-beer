@@ -1,63 +1,342 @@
 /* ARCHIVO: app/components/inventario/inventario.module.css
-   Solo contiene lo que los estilos inline no pueden expresar:
-   @keyframes para el shimmer del skeleton y la aparición de modales.
-   El resto del módulo usa style={{ }} como el resto del proyecto. */
+   Contiene lo que los estilos inline no pueden expresar bien:
+   @keyframes (shimmer del skeleton, aparición de modales) y,
+   a partir de esta actualización, las @media queries responsive
+   del encabezado, los filtros, la tarjeta de producto y la
+   paginación. El resto del módulo sigue usando style={{ }} como
+   el resto del proyecto. */
 
-@keyframes shimmer {
-  0% {
-    background-position: 100% 0;
+   @keyframes shimmer {
+    0% {
+      background-position: 100% 0;
+    }
+    100% {
+      background-position: 0 0;
+    }
   }
-  100% {
-    background-position: 0 0;
+  
+  .skeleton {
+    background: linear-gradient(90deg, #eceff3 25%, #f6f7f9 37%, #eceff3 63%);
+    background-size: 400% 100%;
+    animation: shimmer 1.4s ease infinite;
+    border-radius: 12px;
   }
-}
-
-.skeleton {
-  background: linear-gradient(90deg, #eceff3 25%, #f6f7f9 37%, #eceff3 63%);
-  background-size: 400% 100%;
-  animation: shimmer 1.4s ease infinite;
-  border-radius: 12px;
-}
-
-@keyframes overlayFadeIn {
-  from {
-    opacity: 0;
+  
+  @keyframes overlayFadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
-  to {
-    opacity: 1;
+  
+  @keyframes modalScaleIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
-}
-
-@keyframes modalScaleIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.98);
+  
+  .overlay {
+    animation: overlayFadeIn 140ms ease;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+  
+  .modal {
+    animation: modalScaleIn 160ms ease;
   }
-}
-
-.overlay {
-  animation: overlayFadeIn 140ms ease;
-}
-
-.modal {
-  animation: modalScaleIn 160ms ease;
-}
-
-@keyframes toastSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
+  
+  @keyframes toastSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  
+  .toast {
+    animation: toastSlideIn 160ms ease;
   }
-}
-
-.toast {
-  animation: toastSlideIn 160ms ease;
-}
+  
+  /* ============================================================
+     ENCABEZADO DEL MÓDULO
+     ============================================================ */
+  
+  .header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  
+  @media (max-width: 480px) {
+    .header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+    }
+  
+    .header button {
+      width: 100%;
+    }
+  }
+  
+  /* ============================================================
+     PANEL DE FILTROS (buscador + categorías + estado de stock)
+     ============================================================ */
+  
+  .filtrosPanel {
+    background: white;
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  
+  .filtroBuscador {
+    position: relative;
+    width: 100%;
+  }
+  
+  .filtroBuscadorIcono {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 15px;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+  
+  .filtroBuscadorInput {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px 10px 36px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    font-size: 15px;
+    color: #111827;
+    box-sizing: border-box;
+  }
+  
+  .filtroBuscadorInput:focus {
+    outline: 2px solid #2563eb;
+    outline-offset: 0;
+    border-color: transparent;
+  }
+  
+  .filtroGrupo {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .filtroGrupoEtiqueta {
+    font-size: 12px;
+    font-weight: 700;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+  
+  .chipsFila {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .chip {
+    min-height: 40px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid #e5e7eb;
+    background: white;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: filter 120ms ease, transform 120ms ease;
+  }
+  
+  .chip:active {
+    transform: scale(0.98);
+  }
+  
+  .chipActivo {
+    border-color: #f59e0b;
+    background: #f59e0b;
+    color: white;
+  }
+  
+  @media (max-width: 640px) {
+    .chipsFila {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+    }
+  
+    .chipsFila::-webkit-scrollbar {
+      display: none;
+    }
+  
+    .chip {
+      flex: 0 0 auto;
+    }
+  }
+  
+  /* ============================================================
+     TARJETA DE PRODUCTO — LAYOUT RESPONSIVE
+     ============================================================ */
+  
+  .productoCard {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+  }
+  
+  .productoCabecera {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1 1 260px;
+    min-width: 220px;
+  }
+  
+  .productoMetricas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  
+  .productoMetrica {
+    min-width: 110px;
+  }
+  
+  .productoAcciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-left: auto;
+    justify-content: flex-end;
+  }
+  
+  @media (max-width: 680px) {
+    .productoCard {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 14px;
+    }
+  
+    .productoCabecera {
+      flex: 1 1 auto;
+      min-width: 0;
+      width: 100%;
+    }
+  
+    .productoMetricas {
+      width: 100%;
+      justify-content: space-between;
+      gap: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #f3f4f6;
+    }
+  
+    .productoMetrica {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+  
+    .productoAcciones {
+      width: 100%;
+      margin-left: 0;
+      justify-content: stretch;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+  
+    .productoAcciones > button {
+      width: 100%;
+      justify-content: center;
+      min-height: 44px;
+    }
+  
+    .accionEliminar {
+      grid-column: 1 / -1;
+    }
+  }
+  
+  @media (max-width: 360px) {
+    .productoAcciones {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  /* ============================================================
+     CONTADOR DE RESULTADOS Y PAGINACIÓN
+     ============================================================ */
+  
+  .contadorResultados {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 8px 2px 12px 2px;
+  }
+  
+  .paginacion {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 4px;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  }
+  
+  .paginacionBoton {
+    min-height: 44px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background: white;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  
+  .paginacionBoton:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  
+  @media (max-width: 480px) {
+    .paginacion {
+      flex-direction: column;
+      text-align: center;
+    }
+  
+    .paginacionBoton {
+      width: 100%;
+    }
+  }
+  

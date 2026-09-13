@@ -9,6 +9,8 @@ import {
 
 import { formatoCOP } from "../../../lib/formato";
 
+import styles from "./inventario.module.css";
+
 type Props = {
 
   producto: ProductoInventario;
@@ -93,12 +95,14 @@ function BotonAccion({
   color,
   onClick,
   ariaLabel,
+  className,
 }: {
   etiqueta: string;
   icono: string;
   color: string;
   onClick: () => void;
   ariaLabel: string;
+  className?: string;
 }) {
   const [hover, setHover] = useState(false);
 
@@ -107,6 +111,7 @@ function BotonAccion({
       type="button"
       onClick={onClick}
       aria-label={ariaLabel}
+      className={className}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
@@ -176,6 +181,7 @@ export default function ProductoCard({
 
   return (
     <div
+      className={styles.productoCard}
       onMouseEnter={() =>
         setHover(true)
       }
@@ -198,14 +204,6 @@ export default function ProductoCard({
         transition:
           "transform 160ms ease, box-shadow 160ms ease",
 
-        display: "flex",
-
-        flexWrap: "wrap",
-
-        alignItems: "center",
-
-        gap: 16,
-
         border:
           estado === "sin_stock"
             ? "1px solid #fecaca"
@@ -214,6 +212,15 @@ export default function ProductoCard({
             : "1px solid transparent",
       }}
     >
+      {/* ============================================== */}
+      {/* CABECERA: IMAGEN + INDICADOR + INFORMACIÓN */}
+      {/* Se agrupan para que en móvil permanezcan juntos */}
+      {/* en una misma fila, incluso cuando el resto de la */}
+      {/* tarjeta pasa a una disposición en columna. */}
+      {/* ============================================== */}
+
+      <div className={styles.productoCabecera}>
+
       {/* ============================================== */}
       {/* IMAGEN DEL PRODUCTO */}
       {/* ============================================== */}
@@ -413,16 +420,23 @@ export default function ProductoCard({
         )}
       </div>
 
+      </div>
+      {/* fin .productoCabecera */}
+
+      {/* ============================================== */}
+      {/* MÉTRICAS: STOCK / COMPRA / VENTA */}
+      {/* Se agrupan para reorganizarse en móvil sin */}
+      {/* perder legibilidad ni cortar textos. */}
+      {/* ============================================== */}
+
+      <div className={styles.productoMetricas}>
+
       {/* ============================================== */}
       {/* STOCK */}
       {/* ============================================== */}
 
       <div
-        style={{
-          minWidth: 115,
-
-          paddingLeft: 8,
-        }}
+        className={styles.productoMetrica}
       >
         <div
           style={{
@@ -487,9 +501,7 @@ export default function ProductoCard({
       {/* ============================================== */}
 
       <div
-        style={{
-          minWidth: 125,
-        }}
+        className={styles.productoMetrica}
       >
         <div
           style={{
@@ -530,9 +542,7 @@ export default function ProductoCard({
       {/* ============================================== */}
 
       <div
-        style={{
-          minWidth: 125,
-        }}
+        className={styles.productoMetrica}
       >
         <div
           style={{
@@ -568,6 +578,9 @@ export default function ProductoCard({
         </div>
       </div>
 
+      </div>
+      {/* fin .productoMetricas */}
+
      {/* ============================================== */}
 {/* ACCIONES */}
 {/* ============================================== */}
@@ -575,20 +588,7 @@ export default function ProductoCard({
 {esAdministrador && (
 
 <div
-  style={{
-
-    display: "flex",
-
-    flexWrap: "wrap",
-
-    gap: 8,
-
-    marginLeft: "auto",
-
-    justifyContent:
-      "flex-end",
-
-  }}
+  className={styles.productoAcciones}
 >
 
 
@@ -700,6 +700,7 @@ export default function ProductoCard({
     etiqueta="Eliminar"
     icono="🗑️"
     color="#ef4444"
+    className={styles.accionEliminar}
     onClick={() =>
       onEliminar(producto)
     }
