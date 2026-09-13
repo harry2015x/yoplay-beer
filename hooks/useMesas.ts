@@ -1023,9 +1023,29 @@ export function useMesas() {
         errorVenta
       );
 
+      // ========================================================
+      // SIN JORNADA ACTIVA
+      // ========================================================
+      //
+      // La tabla "ventas" tiene un trigger en Supabase que asigna
+      // automáticamente jornada_id a partir de la jornada abierta,
+      // y RECHAZA el INSERT si no hay ninguna jornada abierta (ver
+      // jornadas.sql). Ese rechazo llega aquí como errorVenta con
+      // un mensaje ya amigable para el usuario; lo mostramos tal
+      // cual en vez del mensaje técnico genérico.
+      // ========================================================
+
+      const esFaltaDeJornada =
+        typeof errorVenta?.message === "string" &&
+        errorVenta.message
+          .toLowerCase()
+          .includes("jornada activa");
+
       mostrarNotificacion(
         "error",
-        "Error al guardar la venta en Supabase."
+        esFaltaDeJornada
+          ? "No hay una jornada activa. Contacta al administrador para iniciar la jornada."
+          : "Error al guardar la venta en Supabase."
       );
 
       return false;

@@ -21,12 +21,14 @@ import type {
 // UTILIDAD DE FECHA LOCAL (SIN DESFASE POR UTC)
 // ============================================================
 //
-// new Date().toISOString() por sí solo no genera el problema,
-// pero construir un rango de "día completo" hay que hacerlo con
-// año/mes/día LOCALES (getFullYear/getMonth/getDate), no parseando
-// strings como "YYYY-MM-DD" con `new Date(string)" (eso sí se
-// interpreta en UTC y puede correr el día). Esta función se usa
-// tanto para "hoy" como para cualquier fecha seleccionada.
+// SE MANTIENE SIN CAMBIOS.
+//
+// Estas utilidades ya NO se usan para decidir qué ventas
+// pertenecen al módulo "Ventas" (eso ahora depende de
+// jornada_id, ver más abajo). Se conservan porque otras partes
+// del sistema (por ejemplo Reportes, si consulta por fecha
+// específica) pueden seguir dependiendo de ellas. Si nada más
+// las usa, se pueden eliminar en una limpieza posterior.
 // ============================================================
 
 export function construirRangoDelDia(fecha: Date): {
@@ -63,29 +65,92 @@ export function construirRangoDelDia(fecha: Date): {
 
 
 // ============================================================
-// CONSULTA COMPARTIDA: VENTAS ENTRE DOS FECHAS (ISO)
+// TRANSFORMACIÓN COMPARTIDA: VENTAS CRUDAS -> VentaDetalle[]
 // ============================================================
 //
-// Esta función contiene EXACTAMENTE la misma lógica de consulta
-// y transformación que antes vivía dentro de `cargarVentas`.
-// Se extrajo para poder reutilizarla:
-//   1) en el hook (comportamiento actual, "hoy"), y
-//   2) en la exportación a PDF (fecha seleccionada por el usuario).
+// Esta lógica (buscar detalles por venta_id y armar el objeto
+// VentaDetalle) es idéntica sin importar si las ventas se
+// obtuvieron por rango de fechas o por jornada_id. Se extrajo
+// aquí para que ninguna de las dos consultas duplique este
+// código (regla: "no duplicar lógica").
+// ============================================================
+
+async function transformarVentasConDetalles(
+  ventasData: any[]
+): Promise<VentaDetalle[]> {
+
+  if (!ventasData || ventasData.length === 0) {
+    return [];
+  }
+
+  const ventasIds = ventasData.map((venta) => venta.id);
+
+  const {
+    data: detallesData,
+    error: detallesError,
+  } = await supabase
+    .from("venta_detalles")
+    .select(`
+      id,
+      venta_id,
+      producto_id,
+      nombre_producto,
+      precio,
+      cantidad,
+      subtotal
+    `)
+    .in("venta_id", ventasIds);
+
+  if (detallesError) {
+    console.error("Error cargando detalles:", detallesError);
+  }
+
+  const productosPorVenta = new Map<number, ProductoVenta[]>();
+
+  (detallesData || []).forEach((detalle: any) => {
+    const producto: ProductoVenta = {
+      id: detalle.id,
+      productoId: detalle.producto_id ?? null,
+      nombreProducto: detalle.nombre_producto ?? "Producto sin nombre",
+      precio: Number(detalle.precio || 0),
+      cantidad: Number(detalle.cantidad || 0),
+      subtotal: Number(detalle.subtotal || 0),
+    };
+
+    const productosActuales = productosPorVenta.get(detalle.venta_id) ?? [];
+    productosActuales.push(producto);
+    productosPorVenta.set(detalle.venta_id, productosActuales);
+  });
+
+  return ventasData.map((venta: any) => ({
+    id: venta.id,
+    mesaId: venta.mesa_id,
+    usuarioId: venta.usuario_id,
+    total: Number(venta.total || 0),
+    estado: venta.estado,
+    createdAt: venta.created_at,
+    closedAt: venta.closed_at,
+    mesaNumero: venta.mesas?.numero ?? null,
+    usuarioNombre: venta.profiles?.nombre ?? "Ventas sin usuario",
+    productos: productosPorVenta.get(venta.id) ?? [],
+  }));
+}
+
+
+// ============================================================
+// CONSULTA: VENTAS ENTRE DOS FECHAS (ISO)
+// ============================================================
 //
-// Ante un error consultando "ventas", se lanza un error (en vez de
-// solo hacer console.error) para que cada llamador decida cómo
-// mostrarlo: el hook lo captura y setea `error`; el flujo de PDF
-// lo captura y muestra "No fue posible generar el reporte PDF."
+// SE MANTIENE por compatibilidad con cualquier otro flujo que
+// siga necesitando ventas de una fecha específica (ej. Reportes).
+// Ya NO es utilizada por el hook useVentas ni por el módulo
+// Ventas para calcular "ventas de la jornada".
 // ============================================================
 
 export async function consultarVentasEntreFechas(
   inicioISO: string,
   finISO: string
 ): Promise<VentaDetalle[]> {
-
-  // ==========================================================
-  // CONSULTAR VENTAS
-  // ==========================================================
 
   const {
     data: ventasData,
@@ -109,232 +174,17 @@ export async function consultarVentasEntreFechas(
         nombre
       )
     `)
-    .eq(
-      "estado",
-      "cerrada"
-    )
-    .gte(
-      "created_at",
-      inicioISO
-    )
-    .lte(
-      "created_at",
-      finISO
-    )
-    .order(
-      "created_at",
-      {
-        ascending: true,
-      }
-    );
-
-
-  // ==========================================================
-  // VALIDAR ERROR
-  // ==========================================================
+    .eq("estado", "cerrada")
+    .gte("created_at", inicioISO)
+    .lte("created_at", finISO)
+    .order("created_at", { ascending: true });
 
   if (ventasError) {
-
-    console.error(
-      "Error cargando ventas:",
-      ventasError
-    );
-
-    throw new Error(
-      "No fue posible cargar las ventas."
-    );
-
+    console.error("Error cargando ventas:", ventasError);
+    throw new Error("No fue posible cargar las ventas.");
   }
 
-
-  // ==========================================================
-  // SI NO HAY VENTAS
-  // ==========================================================
-
-  if (
-    !ventasData ||
-    ventasData.length === 0
-  ) {
-
-    return [];
-
-  }
-
-
-  // ==========================================================
-  // OBTENER IDS DE LAS VENTAS
-  // ==========================================================
-
-  const ventasIds =
-    ventasData.map(
-      (venta) => venta.id
-    );
-
-
-  // ==========================================================
-  // CONSULTAR DETALLES DE VENTAS
-  // ==========================================================
-
-  const {
-    data: detallesData,
-    error: detallesError,
-  } = await supabase
-    .from("venta_detalles")
-    .select(`
-      id,
-      venta_id,
-      producto_id,
-      nombre_producto,
-      precio,
-      cantidad,
-      subtotal
-    `)
-    .in(
-      "venta_id",
-      ventasIds
-    );
-
-
-  // ==========================================================
-  // VALIDAR ERROR DE DETALLES
-  // ==========================================================
-
-  if (detallesError) {
-
-    console.error(
-      "Error cargando detalles:",
-      detallesError
-    );
-
-  }
-
-
-  // ==========================================================
-  // CREAR MAPA DE PRODUCTOS POR VENTA
-  // ==========================================================
-
-  const productosPorVenta =
-    new Map<
-      number,
-      ProductoVenta[]
-    >();
-
-
-  (
-    detallesData || []
-  ).forEach(
-    (detalle: any) => {
-
-
-      const producto: ProductoVenta = {
-
-        id:
-          detalle.id,
-
-        productoId:
-          detalle.producto_id
-            ?? null,
-
-        nombreProducto:
-          detalle.nombre_producto
-            ?? "Producto sin nombre",
-
-        precio:
-          Number(
-            detalle.precio || 0
-          ),
-
-        cantidad:
-          Number(
-            detalle.cantidad || 0
-          ),
-
-        subtotal:
-          Number(
-            detalle.subtotal || 0
-          ),
-
-      };
-
-
-      const productosActuales =
-        productosPorVenta.get(
-          detalle.venta_id
-        )
-        ?? [];
-
-
-      productosActuales.push(
-        producto
-      );
-
-
-      productosPorVenta.set(
-        detalle.venta_id,
-        productosActuales
-      );
-
-    }
-  );
-
-
-  // ==========================================================
-  // TRANSFORMAR VENTAS
-  // ==========================================================
-
-  const ventasTransformadas:
-    VentaDetalle[] =
-    ventasData.map(
-      (venta: any) => {
-
-        return {
-
-          id:
-            venta.id,
-
-          mesaId:
-            venta.mesa_id,
-
-          usuarioId:
-            venta.usuario_id,
-
-          total:
-            Number(
-              venta.total || 0
-            ),
-
-          estado:
-            venta.estado,
-
-          createdAt:
-            venta.created_at,
-
-          closedAt:
-            venta.closed_at,
-
-          mesaNumero:
-            venta.mesas?.numero
-              ?? null,
-
-          usuarioNombre:
-            venta.profiles?.nombre
-              ??
-            "Ventas sin usuario",
-
-          productos:
-            productosPorVenta.get(
-              venta.id
-            )
-            ?? [],
-
-        };
-
-      }
-    );
-
-
-  return ventasTransformadas;
-
+  return transformarVentasConDetalles(ventasData || []);
 }
 
 
@@ -342,31 +192,87 @@ export async function consultarVentasEntreFechas(
 // OBTENER VENTAS DE UNA FECHA ESPECÍFICA
 // ============================================================
 //
-// Usada por la exportación a PDF: NO toca el estado del hook,
-// solo consulta y retorna. Permite exportar "hoy" o cualquier
-// otra fecha que el usuario seleccione.
+// SE MANTIENE por compatibilidad (ver nota arriba).
 // ============================================================
 
 export async function obtenerVentasPorFecha(
   fecha: Date
 ): Promise<VentaDetalle[]> {
 
-  const { inicioISO, finISO } =
-    construirRangoDelDia(fecha);
+  const { inicioISO, finISO } = construirRangoDelDia(fecha);
 
-  return consultarVentasEntreFechas(
-    inicioISO,
-    finISO
-  );
+  return consultarVentasEntreFechas(inicioISO, finISO);
 
+}
+
+
+// ============================================================
+// CONSULTA: VENTAS DE UNA JORNADA (jornada_id)
+// ============================================================
+//
+// Esta es la consulta que ahora usa el módulo Ventas y el
+// resumen de Inicio: NO depende de fechas ni de CURRENT_DATE,
+// solo del jornada_id de la jornada abierta (o de cualquier
+// jornada, si se quisiera reutilizar para ver el historial de
+// una jornada ya cerrada, por ejemplo en el reporte del modal
+// de cierre).
+// ============================================================
+
+export async function consultarVentasPorJornada(
+  jornadaId: number
+): Promise<VentaDetalle[]> {
+
+  const {
+    data: ventasData,
+    error: ventasError,
+  } = await supabase
+    .from("ventas")
+    .select(`
+      id,
+      mesa_id,
+      usuario_id,
+      total,
+      estado,
+      created_at,
+      closed_at,
+
+      mesas (
+        numero
+      ),
+
+      profiles (
+        nombre
+      )
+    `)
+    .eq("estado", "cerrada")
+    .eq("jornada_id", jornadaId)
+    .order("created_at", { ascending: true });
+
+  if (ventasError) {
+    console.error("Error cargando ventas de la jornada:", ventasError);
+    throw new Error("No fue posible cargar las ventas de la jornada.");
+  }
+
+  return transformarVentasConDetalles(ventasData || []);
 }
 
 
 // ============================================================
 // HOOK DE VENTAS
 // ============================================================
+//
+// CAMBIO IMPORTANTE:
+//
+// Antes: useVentas() cargaba las ventas de "hoy" (CURRENT_DATE).
+// Ahora: useVentas(jornadaId) carga las ventas de la JORNADA
+// ACTIVA. Si no hay jornada activa (jornadaId === null), no se
+// muestran ventas (equivalente a "$0 / 0 ventas" en la interfaz).
+//
+// El llamador (page.tsx) es responsable de pasar el id de la
+// jornada activa, obtenido de useJornada().
+// ============================================================
 
-export function useVentas(): UseVentasResult {
+export function useVentas(jornadaId: number | null): UseVentasResult {
 
 
   // ==========================================================
@@ -384,7 +290,7 @@ export function useVentas(): UseVentasResult {
 
 
   // ==========================================================
-  // CARGAR VENTAS (comportamiento sin cambios: ventas de HOY)
+  // CARGAR VENTAS DE LA JORNADA ACTIVA
   // ==========================================================
 
   const cargarVentas = useCallback(
@@ -396,17 +302,14 @@ export function useVentas(): UseVentasResult {
 
         setError(null);
 
-
-        const { inicioISO, finISO } =
-          construirRangoDelDia(new Date());
-
+        if (!jornadaId) {
+          // No hay jornada activa: no hay ventas que mostrar.
+          setVentas([]);
+          return;
+        }
 
         const ventasTransformadas =
-          await consultarVentasEntreFechas(
-            inicioISO,
-            finISO
-          );
-
+          await consultarVentasPorJornada(jornadaId);
 
         setVentas(
           ventasTransformadas
@@ -436,12 +339,13 @@ export function useVentas(): UseVentasResult {
       }
 
     },
-    []
+    [jornadaId]
   );
 
 
   // ==========================================================
-  // CARGAR AUTOMÁTICAMENTE
+  // CARGAR AUTOMÁTICAMENTE (al montar y cada vez que cambia
+  // la jornada activa: iniciar o cerrar jornada dispara recarga)
   // ==========================================================
 
   useEffect(
@@ -537,7 +441,7 @@ export function useVentas(): UseVentasResult {
 
 
   // ==========================================================
-  // TOTAL DE VENTAS DEL DÍA
+  // TOTAL VENDIDO EN LA JORNADA ACTIVA
   // ==========================================================
 
   const totalVentasDia =
@@ -565,7 +469,7 @@ export function useVentas(): UseVentasResult {
 
 
   // ==========================================================
-  // CANTIDAD DE VENTAS DEL DÍA
+  // CANTIDAD DE VENTAS EN LA JORNADA ACTIVA
   // ==========================================================
 
   const cantidadVentasDia =

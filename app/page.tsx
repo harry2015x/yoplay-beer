@@ -6,6 +6,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useMesas } from "../hooks/useMesas";
 import { useInventario } from "../hooks/useInventario";
 import { useVentas } from "../hooks/useVentas";
+import { useJornada } from "../hooks/useJornada";
 
 import { formatoCOP } from "../types/mesas";
 
@@ -16,6 +17,9 @@ import InventarioModule from "./components/inventario/InventarioModule";
 import UsuariosModule from "./components/usuarios/UsuariosModule";
 import VentasModule from "./components/ventas/VentasModule";
 import ReportesModule from "./components/reportes/ReportesModule";
+import JornadaControl from "./components/jornada/JornadaControl";
+import CerrarJornadaModal from "./components/jornada/CerrarJornadaModal";
+import { generarReporteJornada } from "../lib/generarReporteJornada";
 
 const LOGO_IMAGE_URL =
   "https://res.cloudinary.com/dv1gz4eqo/image/upload/v1789083650/LOGO-11_oeaddu.png";
@@ -59,11 +63,43 @@ export default function Home() {
   const inventarioEstado = useInventario();
 
   // ==========================================================
+  // JORNADA
+  //
+  // Controla el período de operación del negocio de forma
+  // manual (solo administrador). NO depende de la fecha del
+  // calendario ni se reinicia a medianoche.
+  // ==========================================================
+
+  const jornadaEstado = useJornada();
+
+  const {
+    jornadaActiva,
+    cargando: cargandoJornada,
+    procesando: procesandoJornada,
+    error: errorJornada,
+    iniciarJornada,
+    cerrarJornada,
+    limpiarError: limpiarErrorJornada,
+  } = jornadaEstado;
+
+  // ==========================================================
+  // MODAL DE CIERRE DE JORNADA
+  // ==========================================================
+
+  const [modalCerrarJornadaAbierto, setModalCerrarJornadaAbierto] =
+    useState(false);
+
+  // ==========================================================
   // VENTAS
   //
   // IMPORTANTE:
   //
-  // Estas ventas vienen del nuevo hook useVentas().
+  // Estas ventas vienen del hook useVentas(jornadaId).
+  //
+  // CAMBIO: antes se cargaban las ventas "del día" (CURRENT_DATE).
+  // Ahora se cargan las ventas de la JORNADA ACTIVA. Si no hay
+  // jornada activa, se pasa `null` y el hook devuelve una lista
+  // vacía (equivalente visualmente a "$0 / 0 ventas").
   //
   // Aquí se cargan:
   // - Venta
@@ -78,7 +114,7 @@ export default function Home() {
   // de historial de ventas.
   // ==========================================================
 
-  const ventasEstado = useVentas();
+  const ventasEstado = useVentas(jornadaActiva?.id ?? null);
 
   const {
     ventas: ventasRegistradas,
@@ -90,6 +126,67 @@ export default function Home() {
     cargarVentas,
     limpiarError: limpiarErrorVentas,
   } = ventasEstado;
+
+  // ==========================================================
+  // HANDLERS DE JORNADA
+  // ==========================================================
+  //
+  // El rol también se valida en Supabase/RLS (ver jornadas.sql):
+  // aunque alguien manipule el frontend, un vendedor no puede
+  // iniciar ni cerrar una jornada porque el INSERT/UPDATE es
+  // rechazado por la base de datos.
+  // ==========================================================
+
+  async function manejarIniciarJornada() {
+    if (!perfil || perfil.rol !== "administrador") return;
+    limpiarErrorJornada();
+    await iniciarJornada(perfil.id);
+  }
+
+  function manejarSolicitarCierreJornada() {
+    if (!perfil || perfil.rol !== "administrador") return;
+    limpiarErrorJornada();
+    setModalCerrarJornadaAbierto(true);
+  }
+
+  function manejarCancelarCierreJornada() {
+    setModalCerrarJornadaAbierto(false);
+  }
+
+  async function manejarConfirmarCierreJornada() {
+    if (!perfil || perfil.rol !== "administrador") return;
+
+    const exito = await cerrarJornada(perfil.id);
+
+    if (exito) {
+      setModalCerrarJornadaAbierto(false);
+    }
+  }
+
+  // ==========================================================
+  // DESCARGAR REPORTE DESDE EL MODAL CERRAR JORNADA
+  // ==========================================================
+  //
+  // Usa la MISMA función reutilizable que el botón "Exportar PDF"
+  // del módulo Ventas (generarReporteJornada): no se duplica la
+  // lógica de generación de PDF.
+  // ==========================================================
+
+  async function manejarDescargarReporteJornada() {
+    if (!jornadaActiva) return;
+
+    const nombreGenerador = perfil?.nombre || "Administrador";
+
+    try {
+      await generarReporteJornada({
+        jornada: jornadaActiva,
+        ventas: ventasRegistradas,
+        usuario: nombreGenerador,
+      });
+    } catch (error) {
+      console.error("Error generando el reporte de la jornada:", error);
+    }
+  }
 
   // ==========================================================
   // PANTALLA DE CARGA
@@ -325,16 +422,26 @@ export default function Home() {
                 Bienvenido, <strong>{nombreUsuario}</strong>.
               </p>
 
+              <JornadaControl
+                esAdministrador={esAdministrador}
+                jornadaActiva={jornadaActiva}
+                cargando={cargandoJornada}
+                procesando={procesandoJornada}
+                error={errorJornada}
+                onIniciar={manejarIniciarJornada}
+                onSolicitarCierre={manejarSolicitarCierreJornada}
+              />
+
               <div className="tarjetas">
                 <Tarjeta
-                  titulo="Ventas del día"
+                  titulo="Total vendido (jornada)"
                   valor={formatoCOP(totalVentasDia)}
                   icono="💰"
                   acento="#39ff14"
                 />
 
                 <Tarjeta
-                  titulo="Ventas realizadas"
+                  titulo="Ventas realizadas (jornada)"
                   valor={cantidadVentasDia.toString()}
                   icono="🧾"
                   acento="#16c784"
@@ -397,6 +504,7 @@ export default function Home() {
               limpiarError={limpiarErrorVentas}
               perfilActual={perfil}
               esAdministrador={esAdministrador}
+              jornada={jornadaActiva}
             />
           )}
 
@@ -426,6 +534,24 @@ export default function Home() {
           )}
         </section>
       </div>
+
+      {/* ==================================================== */}
+      {/* MODAL: CERRAR JORNADA */}
+      {/* ==================================================== */}
+
+      {jornadaActiva && (
+        <CerrarJornadaModal
+          abierto={modalCerrarJornadaAbierto}
+          jornada={jornadaActiva}
+          totalVendido={totalVentasDia}
+          ventasRealizadas={cantidadVentasDia}
+          procesando={procesandoJornada}
+          formatoCOP={formatoCOP}
+          onDescargarReporte={manejarDescargarReporteJornada}
+          onCancelar={manejarCancelarCierreJornada}
+          onConfirmarCierre={manejarConfirmarCierreJornada}
+        />
+      )}
 
       <style jsx>{`
         .app {

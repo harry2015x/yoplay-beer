@@ -1,14 +1,13 @@
 "use client";
 
-import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useMemo, useState } from "react";
 
 import type { PerfilUsuario } from "../../../hooks/useAuth";
+import type { Jornada } from "../../../hooks/useJornada";
 
 import type { ResumenVentasUsuario, VentaDetalle } from "../../../types/ventas";
 
-import { obtenerVentasPorFecha } from "../../../hooks/useVentas";
-
-import { generarReporteVentasPDF } from "../../../lib/generarReporteVentasPDF";
+import { generarReporteJornada } from "../../../lib/generarReporteJornada";
 
 import VentasUsuarioModal from "./VentasUsuarioModal";
 
@@ -25,6 +24,7 @@ type Props = {
   limpiarError: () => void;
   perfilActual: PerfilUsuario;
   esAdministrador: boolean;
+  jornada: Jornada | null;
 };
 
 // ============================================================
@@ -42,29 +42,6 @@ function formatoCOP(valor: number): string {
 
 function etiquetaVentas(cantidad: number, singular: string, plural: string): string {
   return cantidad === 1 ? singular : plural;
-}
-
-// ============================================================
-// FECHA LOCAL (para el selector de fecha del reporte PDF)
-// ============================================================
-
-function fechaLocalDeHoy(): Date {
-  const ahora = new Date();
-  return new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
-}
-
-function fechaAValorInput(fecha: Date): string {
-  const yyyy = fecha.getFullYear();
-  const mm = String(fecha.getMonth() + 1).padStart(2, "0");
-  const dd = String(fecha.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function valorInputAFechaLocal(valor: string): Date | null {
-  const partes = valor.split("-").map(Number);
-  const [yyyy, mm, dd] = partes;
-  if (!yyyy || !mm || !dd) return null;
-  return new Date(yyyy, mm - 1, dd);
 }
 
 function inicialesDeNombre(nombre: string): string {
@@ -160,6 +137,7 @@ export default function VentasModule({
   limpiarError,
   perfilActual,
   esAdministrador,
+  jornada,
 }: Props) {
   // ==========================================================
   // USUARIO SELECCIONADO
@@ -214,74 +192,45 @@ export default function VentasModule({
   // EXPORTAR PDF
   // ==========================================================
 
-  const [fechaReporte, setFechaReporte] = useState<Date>(() => fechaLocalDeHoy());
-  const inputFechaRef = useRef<HTMLInputElement>(null);
   const [generandoPDF, setGenerandoPDF] = useState(false);
   const [mensajePDF, setMensajePDF] = useState<string | null>(null);
 
-  function manejarCambioFecha(evento: ChangeEvent<HTMLInputElement>) {
-    const nuevaFecha = valorInputAFechaLocal(evento.target.value);
-    if (!nuevaFecha) return;
-    setFechaReporte(nuevaFecha);
-    setMensajePDF(null);
-  }
-
-  // Abre el calendario al pulsar cualquier zona del selector.
-  // showPicker() se usa cuando el navegador lo soporta y el fallback
-  // mantiene compatibilidad con otros navegadores y dispositivos móviles.
-  function abrirSelectorFecha() {
-    const input = inputFechaRef.current;
-    if (!input) return;
-
-    input.focus();
-
-    const inputConPicker = input as HTMLInputElement & {
-      showPicker?: () => void;
-    };
-
-    if (typeof inputConPicker.showPicker === "function") {
-      try {
-        inputConPicker.showPicker();
-        return;
-      } catch {
-        // Algunos navegadores restringen showPicker; usamos el fallback.
-      }
-    }
-
-    input.click();
-  }
-
   async function manejarExportarPDF() {
-    // Solo administradores pueden exportar el reporte del día.
+    // Solo administradores pueden exportar el reporte de la jornada.
     // Esta comprobación es defensiva: la UI ya oculta el botón
-    // y el selector de fecha a los vendedores, pero no confiamos
-    // únicamente en eso.
+    // a los vendedores, pero no confiamos únicamente en eso.
     if (!esAdministrador) return;
 
     if (generandoPDF) return;
 
+    if (!jornada) {
+      setMensajePDF("No hay una jornada activa para exportar.");
+      return;
+    }
+
+    // Se exportan las ventas YA CARGADAS de la jornada activa
+    // (las mismas que se ven en pantalla): no se hace una consulta
+    // independiente por fecha, porque el reporte ahora depende de
+    // jornada_id y no de un día de calendario.
+    if (ventas.length === 0) {
+      setMensajePDF("No hay ventas registradas en la jornada activa.");
+      return;
+    }
+
     try {
       setGenerandoPDF(true);
       setMensajePDF(null);
-
-      // Consulta independiente del estado del hook: no afecta
-      // la lista de ventas mostrada en pantalla (que sigue
-      // siendo siempre la de "hoy").
-      const ventasDeLaFecha = await obtenerVentasPorFecha(fechaReporte);
-
-      if (ventasDeLaFecha.length === 0) {
-        setMensajePDF("No existen ventas registradas para esta fecha.");
-        return;
-      }
 
       const nombreGenerador =
         (perfilActual as { nombre?: string; nombre_completo?: string }).nombre ??
         (perfilActual as { nombre?: string; nombre_completo?: string }).nombre_completo ??
         "Administrador";
 
-      await generarReporteVentasPDF({
-        ventas: ventasDeLaFecha,
-        fecha: fechaReporte,
+      // Función reutilizable: la misma que usa el botón
+      // "Descargar reporte" del modal Cerrar jornada.
+      await generarReporteJornada({
+        jornada,
+        ventas,
         usuario: nombreGenerador,
       });
     } catch (error) {
@@ -322,38 +271,14 @@ export default function VentasModule({
       <div className="vm-page-header">
         <div>
           <h2>Ventas</h2>
-          <p>{esAdministrador ? "Registro diario de ventas por usuario." : "Registro de tus ventas realizadas hoy."}</p>
+          <p>
+            {esAdministrador
+              ? "Ventas de la jornada activa, por usuario."
+              : "Tus ventas durante la jornada activa."}
+          </p>
         </div>
 
         <div className="vm-header-actions">
-          {esAdministrador && (
-            <div
-              className="vm-date-field"
-              role="button"
-              tabIndex={0}
-              onClick={abrirSelectorFecha}
-              onKeyDown={(evento) => {
-                if (evento.key === "Enter" || evento.key === " ") {
-                  evento.preventDefault();
-                  abrirSelectorFecha();
-                }
-              }}
-              aria-label="Seleccionar fecha del reporte"
-            >
-              <span className="vm-date-icon" aria-hidden="true">📅</span>
-              <input
-                ref={inputFechaRef}
-                type="date"
-                value={fechaAValorInput(fechaReporte)}
-                onChange={manejarCambioFecha}
-                onClick={(evento) => evento.stopPropagation()}
-                max={fechaAValorInput(fechaLocalDeHoy())}
-                className="vm-date-input"
-                aria-label="Fecha del reporte a exportar"
-              />
-            </div>
-          )}
-
           <button type="button" onClick={manejarRecargar} disabled={cargando} className="vm-refresh-btn">
             {cargando ? <IconSpinner size={15} /> : <IconRefresh size={15} />}
             {cargando ? "Cargando..." : "Actualizar"}
@@ -363,7 +288,7 @@ export default function VentasModule({
             <button
               type="button"
               onClick={manejarExportarPDF}
-              disabled={generandoPDF}
+              disabled={generandoPDF || !jornada}
               className="vm-pdf-btn"
             >
               {generandoPDF ? <IconSpinner size={15} /> : <IconFileDown size={15} />}
@@ -372,6 +297,16 @@ export default function VentasModule({
           )}
         </div>
       </div>
+
+      {/* ESTADO DE LA JORNADA */}
+      {!cargando && !jornada && (
+        <div className="vm-pdf-banner" role="status">
+          <span className="vm-error-text">
+            <IconAlertTriangle size={16} />
+            No hay una jornada activa. Contacta al administrador para iniciar la jornada.
+          </span>
+        </div>
+      )}
 
       {/* ERROR */}
       {error && (
@@ -407,7 +342,7 @@ export default function VentasModule({
       {/* RESUMEN GENERAL */}
       <div className="vm-summary-card">
         <div>
-          <div className="vm-summary-label">Total vendido hoy</div>
+          <div className="vm-summary-label">Total vendido (jornada)</div>
           <strong className="vm-summary-total">{formatoCOP(totalDelDia)}</strong>
         </div>
 
@@ -440,8 +375,14 @@ export default function VentasModule({
         {!cargando && resumenVisible.length === 0 && (
           <div className="vm-empty">
             <IconTray size={30} />
-            <strong>Todavía no hay ventas hoy.</strong>
-            <p>Las ventas aparecerán aquí cuando se cierre una mesa.</p>
+            <strong>
+              {jornada ? "Todavía no hay ventas en esta jornada." : "No hay una jornada activa."}
+            </strong>
+            <p>
+              {jornada
+                ? "Las ventas aparecerán aquí cuando se cierre una mesa."
+                : "Contacta al administrador para iniciar la jornada."}
+            </p>
           </div>
         )}
 
@@ -477,7 +418,7 @@ export default function VentasModule({
         {!cargando && cantidadVentas > 0 && (
           <div className="vm-total-final">
             <div>
-              <div className="vm-total-final-label">{esAdministrador ? "Total de ventas del día" : "Total de mis ventas"}</div>
+              <div className="vm-total-final-label">{esAdministrador ? "Total de ventas de la jornada" : "Total de mis ventas"}</div>
               <div className="vm-total-final-count">
                 {cantidadVentas} {etiquetaVentas(cantidadVentas, "venta registrada", "ventas registradas")}
               </div>
@@ -508,52 +449,33 @@ export default function VentasModule({
 
         .vm-page-header {
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           justify-content: space-between;
           gap: 20px;
+          flex-wrap: wrap;
           margin-bottom: 24px;
-          width: 100%;
         }
-        
-        .vm-page-header > :first-child {
-          flex: 1 1 auto;
-          min-width: 0;
-        }
-        
+        .vm-page-header h2 { margin: 0 0 4px; font-size: 22px; font-weight: 650; letter-spacing: -0.01em; color: var(--vm-ink); }
+        .vm-page-header p { margin: 0; font-size: 14px; color: var(--vm-text-muted); }
+
         .vm-header-actions {
           display: flex;
           align-items: center;
-          justify-content: flex-end;
           gap: 10px;
           flex-wrap: wrap;
-          flex: 0 0 auto;
-          width: auto;
-          max-width: 100%;
         }
 
         .vm-date-field {
           display: inline-flex;
           align-items: center;
-          justify-content: center;
-          gap: 8px;
-          min-width: 144px;
-          padding: 0 14px;
+          gap: 6px;
+          padding: 0 12px;
           height: 42px;
           background: var(--vm-surface);
           border: 1.5px solid var(--vm-border);
           border-radius: 10px;
-          cursor: pointer;
-          user-select: none;
-          transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
         }
-        .vm-date-field:hover { border-color: #c8ced6; background: #fbfcfd; }
-        .vm-date-field:focus-visible,
-        .vm-date-field:focus-within {
-          outline: none;
-          border-color: var(--vm-green);
-          box-shadow: 0 0 0 3px rgba(21, 122, 61, 0.12);
-        }
-        .vm-date-icon { font-size: 14px; line-height: 1; flex-shrink: 0; }
+        .vm-date-icon { font-size: 14px; line-height: 1; }
         .vm-date-input {
           border: none;
           outline: none;
@@ -775,32 +697,10 @@ export default function VentasModule({
         :global(.vm-spin) { animation: vm-spin 0.8s linear infinite; transform-origin: center; }
 
         @media (max-width: 640px) {
-          .vm-page-header {
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-            gap: 16px;
-          }
-          .vm-header-actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            align-items: stretch;
-            gap: 10px;
-            width: 100%;
-          }
-          .vm-date-field {
-            grid-column: 1 / -1;
-            height: 46px;
-            width: 100%;
-            box-sizing: border-box;
-            min-width: 0;
-          }
-          .vm-refresh-btn, .vm-pdf-btn {
-            justify-content: center;
-            width: 100%;
-            box-sizing: border-box;
-            min-height: 46px;
-          }
+          .vm-page-header { flex-direction: column; align-items: stretch; }
+          .vm-header-actions { flex-direction: column; align-items: stretch; width: 100%; }
+          .vm-date-field { height: 44px; width: 100%; box-sizing: border-box; }
+          .vm-refresh-btn, .vm-pdf-btn { justify-content: center; width: 100%; box-sizing: border-box; min-height: 44px; }
           .vm-summary-card { flex-direction: column; align-items: stretch; padding: 22px; }
           .vm-summary-count { flex-direction: row; align-items: center; justify-content: space-between; align-self: stretch; }
           .vm-panel { padding: 20px; }
