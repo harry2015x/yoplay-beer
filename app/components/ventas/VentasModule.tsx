@@ -226,6 +226,12 @@ export default function VentasModule({
   }
 
   async function manejarExportarPDF() {
+    // Solo administradores pueden exportar el reporte del día.
+    // Esta comprobación es defensiva: la UI ya oculta el botón
+    // y el selector de fecha a los vendedores, pero no confiamos
+    // únicamente en eso.
+    if (!esAdministrador) return;
+
     if (generandoPDF) return;
 
     try {
@@ -237,13 +243,7 @@ export default function VentasModule({
       // siendo siempre la de "hoy").
       const ventasDeLaFecha = await obtenerVentasPorFecha(fechaReporte);
 
-      // Un vendedor exporta solo sus propias ventas; el
-      // administrador exporta todas, igual que en la vista.
-      const ventasParaReporte = esAdministrador
-        ? ventasDeLaFecha
-        : ventasDeLaFecha.filter((venta) => venta.usuarioId === perfilActual.id);
-
-      if (ventasParaReporte.length === 0) {
+      if (ventasDeLaFecha.length === 0) {
         setMensajePDF("No existen ventas registradas para esta fecha.");
         return;
       }
@@ -251,10 +251,10 @@ export default function VentasModule({
       const nombreGenerador =
         (perfilActual as { nombre?: string; nombre_completo?: string }).nombre ??
         (perfilActual as { nombre?: string; nombre_completo?: string }).nombre_completo ??
-        (esAdministrador ? "Administrador" : "Usuario");
+        "Administrador";
 
       await generarReporteVentasPDF({
-        ventas: ventasParaReporte,
+        ventas: ventasDeLaFecha,
         fecha: fechaReporte,
         usuario: nombreGenerador,
       });
@@ -300,32 +300,36 @@ export default function VentasModule({
         </div>
 
         <div className="vm-header-actions">
-          <label className="vm-date-field">
-            <span className="vm-date-icon" aria-hidden="true">📅</span>
-            <input
-              type="date"
-              value={fechaAValorInput(fechaReporte)}
-              onChange={manejarCambioFecha}
-              max={fechaAValorInput(fechaLocalDeHoy())}
-              className="vm-date-input"
-              aria-label="Fecha del reporte a exportar"
-            />
-          </label>
+          {esAdministrador && (
+            <label className="vm-date-field">
+              <span className="vm-date-icon" aria-hidden="true">📅</span>
+              <input
+                type="date"
+                value={fechaAValorInput(fechaReporte)}
+                onChange={manejarCambioFecha}
+                max={fechaAValorInput(fechaLocalDeHoy())}
+                className="vm-date-input"
+                aria-label="Fecha del reporte a exportar"
+              />
+            </label>
+          )}
 
           <button type="button" onClick={manejarRecargar} disabled={cargando} className="vm-refresh-btn">
             {cargando ? <IconSpinner size={15} /> : <IconRefresh size={15} />}
             {cargando ? "Cargando..." : "Actualizar"}
           </button>
 
-          <button
-            type="button"
-            onClick={manejarExportarPDF}
-            disabled={generandoPDF}
-            className="vm-pdf-btn"
-          >
-            {generandoPDF ? <IconSpinner size={15} /> : <IconFileDown size={15} />}
-            {generandoPDF ? "Generando PDF..." : "Exportar PDF"}
-          </button>
+          {esAdministrador && (
+            <button
+              type="button"
+              onClick={manejarExportarPDF}
+              disabled={generandoPDF}
+              className="vm-pdf-btn"
+            >
+              {generandoPDF ? <IconSpinner size={15} /> : <IconFileDown size={15} />}
+              {generandoPDF ? "Generando PDF..." : "Exportar PDF"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -343,7 +347,7 @@ export default function VentasModule({
       )}
 
       {/* MENSAJE DE EXPORTACIÓN PDF (p.ej. sin ventas en la fecha) */}
-      {mensajePDF && (
+      {esAdministrador && mensajePDF && (
         <div className="vm-pdf-banner" role="status">
           <span className="vm-error-text">
             <IconAlertTriangle size={16} />
