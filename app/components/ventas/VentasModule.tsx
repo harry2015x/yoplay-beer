@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ChangeEvent } from "react";
+import { useMemo, useRef, useState, type ChangeEvent } from "react";
 
 import type { PerfilUsuario } from "../../../hooks/useAuth";
 
@@ -215,6 +215,7 @@ export default function VentasModule({
   // ==========================================================
 
   const [fechaReporte, setFechaReporte] = useState<Date>(() => fechaLocalDeHoy());
+  const inputFechaRef = useRef<HTMLInputElement>(null);
   const [generandoPDF, setGenerandoPDF] = useState(false);
   const [mensajePDF, setMensajePDF] = useState<string | null>(null);
 
@@ -223,6 +224,31 @@ export default function VentasModule({
     if (!nuevaFecha) return;
     setFechaReporte(nuevaFecha);
     setMensajePDF(null);
+  }
+
+  // Abre el calendario al pulsar cualquier zona del selector.
+  // showPicker() se usa cuando el navegador lo soporta y el fallback
+  // mantiene compatibilidad con otros navegadores y dispositivos móviles.
+  function abrirSelectorFecha() {
+    const input = inputFechaRef.current;
+    if (!input) return;
+
+    input.focus();
+
+    const inputConPicker = input as HTMLInputElement & {
+      showPicker?: () => void;
+    };
+
+    if (typeof inputConPicker.showPicker === "function") {
+      try {
+        inputConPicker.showPicker();
+        return;
+      } catch {
+        // Algunos navegadores restringen showPicker; usamos el fallback.
+      }
+    }
+
+    input.click();
   }
 
   async function manejarExportarPDF() {
@@ -301,17 +327,31 @@ export default function VentasModule({
 
         <div className="vm-header-actions">
           {esAdministrador && (
-            <label className="vm-date-field">
+            <div
+              className="vm-date-field"
+              role="button"
+              tabIndex={0}
+              onClick={abrirSelectorFecha}
+              onKeyDown={(evento) => {
+                if (evento.key === "Enter" || evento.key === " ") {
+                  evento.preventDefault();
+                  abrirSelectorFecha();
+                }
+              }}
+              aria-label="Seleccionar fecha del reporte"
+            >
               <span className="vm-date-icon" aria-hidden="true">📅</span>
               <input
+                ref={inputFechaRef}
                 type="date"
                 value={fechaAValorInput(fechaReporte)}
                 onChange={manejarCambioFecha}
+                onClick={(evento) => evento.stopPropagation()}
                 max={fechaAValorInput(fechaLocalDeHoy())}
                 className="vm-date-input"
                 aria-label="Fecha del reporte a exportar"
               />
-            </label>
+            </div>
           )}
 
           <button type="button" onClick={manejarRecargar} disabled={cargando} className="vm-refresh-btn">
@@ -467,34 +507,50 @@ export default function VentasModule({
         }
 
         .vm-page-header {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+          align-items: center;
           gap: 20px;
-          flex-wrap: wrap;
           margin-bottom: 24px;
         }
+        .vm-page-header > :first-child { grid-column: 1; }
         .vm-page-header h2 { margin: 0 0 4px; font-size: 22px; font-weight: 650; letter-spacing: -0.01em; color: var(--vm-ink); }
         .vm-page-header p { margin: 0; font-size: 14px; color: var(--vm-text-muted); }
 
         .vm-header-actions {
+          grid-column: 2;
           display: flex;
           align-items: center;
+          justify-content: center;
           gap: 10px;
           flex-wrap: wrap;
+          width: max-content;
+          max-width: 100%;
         }
 
         .vm-date-field {
           display: inline-flex;
           align-items: center;
-          gap: 6px;
-          padding: 0 12px;
+          justify-content: center;
+          gap: 8px;
+          min-width: 144px;
+          padding: 0 14px;
           height: 42px;
           background: var(--vm-surface);
           border: 1.5px solid var(--vm-border);
           border-radius: 10px;
+          cursor: pointer;
+          user-select: none;
+          transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
         }
-        .vm-date-icon { font-size: 14px; line-height: 1; }
+        .vm-date-field:hover { border-color: #c8ced6; background: #fbfcfd; }
+        .vm-date-field:focus-visible,
+        .vm-date-field:focus-within {
+          outline: none;
+          border-color: var(--vm-green);
+          box-shadow: 0 0 0 3px rgba(21, 122, 61, 0.12);
+        }
+        .vm-date-icon { font-size: 14px; line-height: 1; flex-shrink: 0; }
         .vm-date-input {
           border: none;
           outline: none;
@@ -716,10 +772,32 @@ export default function VentasModule({
         :global(.vm-spin) { animation: vm-spin 0.8s linear infinite; transform-origin: center; }
 
         @media (max-width: 640px) {
-          .vm-page-header { flex-direction: column; align-items: stretch; }
-          .vm-header-actions { flex-direction: column; align-items: stretch; width: 100%; }
-          .vm-date-field { height: 44px; width: 100%; box-sizing: border-box; }
-          .vm-refresh-btn, .vm-pdf-btn { justify-content: center; width: 100%; box-sizing: border-box; min-height: 44px; }
+          .vm-page-header {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 16px;
+          }
+          .vm-header-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            align-items: stretch;
+            gap: 10px;
+            width: 100%;
+          }
+          .vm-date-field {
+            grid-column: 1 / -1;
+            height: 46px;
+            width: 100%;
+            box-sizing: border-box;
+            min-width: 0;
+          }
+          .vm-refresh-btn, .vm-pdf-btn {
+            justify-content: center;
+            width: 100%;
+            box-sizing: border-box;
+            min-height: 46px;
+          }
           .vm-summary-card { flex-direction: column; align-items: stretch; padding: 22px; }
           .vm-summary-count { flex-direction: row; align-items: center; justify-content: space-between; align-self: stretch; }
           .vm-panel { padding: 20px; }
