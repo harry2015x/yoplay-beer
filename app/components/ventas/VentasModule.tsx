@@ -1,10 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ChangeEvent } from "react";
 
 import type { PerfilUsuario } from "../../../hooks/useAuth";
 
 import type { ResumenVentasUsuario, VentaDetalle } from "../../../types/ventas";
+
+import { obtenerVentasPorFecha } from "../../../hooks/useVentas";
+
+import { generarReporteVentasPDF } from "../../../lib/generarReporteVentasPDF";
 
 import VentasUsuarioModal from "./VentasUsuarioModal";
 
@@ -38,6 +42,29 @@ function formatoCOP(valor: number): string {
 
 function etiquetaVentas(cantidad: number, singular: string, plural: string): string {
   return cantidad === 1 ? singular : plural;
+}
+
+// ============================================================
+// FECHA LOCAL (para el selector de fecha del reporte PDF)
+// ============================================================
+
+function fechaLocalDeHoy(): Date {
+  const ahora = new Date();
+  return new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+}
+
+function fechaAValorInput(fecha: Date): string {
+  const yyyy = fecha.getFullYear();
+  const mm = String(fecha.getMonth() + 1).padStart(2, "0");
+  const dd = String(fecha.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function valorInputAFechaLocal(valor: string): Date | null {
+  const partes = valor.split("-").map(Number);
+  const [yyyy, mm, dd] = partes;
+  if (!yyyy || !mm || !dd) return null;
+  return new Date(yyyy, mm - 1, dd);
 }
 
 function inicialesDeNombre(nombre: string): string {
@@ -95,6 +122,17 @@ function IconChevronRight({ size = 16 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M7.5 5 12.5 10 7.5 15" />
+    </svg>
+  );
+}
+
+function IconFileDown({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 2.5h5.5L15 6v10.5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1z" />
+      <path d="M11.3 2.5V6h3.5" />
+      <path d="M10 9v5.2" />
+      <path d="M7.6 12.3 10 14.7l2.4-2.4" />
     </svg>
   );
 }
@@ -173,6 +211,62 @@ export default function VentasModule({
   }
 
   // ==========================================================
+  // EXPORTAR PDF
+  // ==========================================================
+
+  const [fechaReporte, setFechaReporte] = useState<Date>(() => fechaLocalDeHoy());
+  const [generandoPDF, setGenerandoPDF] = useState(false);
+  const [mensajePDF, setMensajePDF] = useState<string | null>(null);
+
+  function manejarCambioFecha(evento: ChangeEvent<HTMLInputElement>) {
+    const nuevaFecha = valorInputAFechaLocal(evento.target.value);
+    if (!nuevaFecha) return;
+    setFechaReporte(nuevaFecha);
+    setMensajePDF(null);
+  }
+
+  async function manejarExportarPDF() {
+    if (generandoPDF) return;
+
+    try {
+      setGenerandoPDF(true);
+      setMensajePDF(null);
+
+      // Consulta independiente del estado del hook: no afecta
+      // la lista de ventas mostrada en pantalla (que sigue
+      // siendo siempre la de "hoy").
+      const ventasDeLaFecha = await obtenerVentasPorFecha(fechaReporte);
+
+      // Un vendedor exporta solo sus propias ventas; el
+      // administrador exporta todas, igual que en la vista.
+      const ventasParaReporte = esAdministrador
+        ? ventasDeLaFecha
+        : ventasDeLaFecha.filter((venta) => venta.usuarioId === perfilActual.id);
+
+      if (ventasParaReporte.length === 0) {
+        setMensajePDF("No existen ventas registradas para esta fecha.");
+        return;
+      }
+
+      const nombreGenerador =
+        (perfilActual as { nombre?: string; nombre_completo?: string }).nombre ??
+        (perfilActual as { nombre?: string; nombre_completo?: string }).nombre_completo ??
+        (esAdministrador ? "Administrador" : "Usuario");
+
+      await generarReporteVentasPDF({
+        ventas: ventasParaReporte,
+        fecha: fechaReporte,
+        usuario: nombreGenerador,
+      });
+    } catch (error) {
+      console.error(error);
+      setMensajePDF("No fue posible generar el reporte PDF.");
+    } finally {
+      setGenerandoPDF(false);
+    }
+  }
+
+  // ==========================================================
   // ABRIR / CERRAR DETALLE
   // ==========================================================
 
@@ -205,10 +299,34 @@ export default function VentasModule({
           <p>{esAdministrador ? "Registro diario de ventas por usuario." : "Registro de tus ventas realizadas hoy."}</p>
         </div>
 
-        <button type="button" onClick={manejarRecargar} disabled={cargando} className="vm-refresh-btn">
-          {cargando ? <IconSpinner size={15} /> : <IconRefresh size={15} />}
-          {cargando ? "Cargando..." : "Actualizar"}
-        </button>
+        <div className="vm-header-actions">
+          <label className="vm-date-field">
+            <span className="vm-date-icon" aria-hidden="true">📅</span>
+            <input
+              type="date"
+              value={fechaAValorInput(fechaReporte)}
+              onChange={manejarCambioFecha}
+              max={fechaAValorInput(fechaLocalDeHoy())}
+              className="vm-date-input"
+              aria-label="Fecha del reporte a exportar"
+            />
+          </label>
+
+          <button type="button" onClick={manejarRecargar} disabled={cargando} className="vm-refresh-btn">
+            {cargando ? <IconSpinner size={15} /> : <IconRefresh size={15} />}
+            {cargando ? "Cargando..." : "Actualizar"}
+          </button>
+
+          <button
+            type="button"
+            onClick={manejarExportarPDF}
+            disabled={generandoPDF}
+            className="vm-pdf-btn"
+          >
+            {generandoPDF ? <IconSpinner size={15} /> : <IconFileDown size={15} />}
+            {generandoPDF ? "Generando PDF..." : "Exportar PDF"}
+          </button>
+        </div>
       </div>
 
       {/* ERROR */}
@@ -219,6 +337,24 @@ export default function VentasModule({
             {error}
           </span>
           <button type="button" onClick={limpiarError} className="vm-error-close" aria-label="Cerrar aviso">
+            <IconX size={13} />
+          </button>
+        </div>
+      )}
+
+      {/* MENSAJE DE EXPORTACIÓN PDF (p.ej. sin ventas en la fecha) */}
+      {mensajePDF && (
+        <div className="vm-pdf-banner" role="status">
+          <span className="vm-error-text">
+            <IconAlertTriangle size={16} />
+            {mensajePDF}
+          </span>
+          <button
+            type="button"
+            onClick={() => setMensajePDF(null)}
+            className="vm-error-close"
+            aria-label="Cerrar aviso"
+          >
             <IconX size={13} />
           </button>
         </div>
@@ -337,6 +473,35 @@ export default function VentasModule({
         .vm-page-header h2 { margin: 0 0 4px; font-size: 22px; font-weight: 650; letter-spacing: -0.01em; color: var(--vm-ink); }
         .vm-page-header p { margin: 0; font-size: 14px; color: var(--vm-text-muted); }
 
+        .vm-header-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .vm-date-field {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 0 12px;
+          height: 42px;
+          background: var(--vm-surface);
+          border: 1.5px solid var(--vm-border);
+          border-radius: 10px;
+        }
+        .vm-date-icon { font-size: 14px; line-height: 1; }
+        .vm-date-input {
+          border: none;
+          outline: none;
+          background: transparent;
+          font-size: 14px;
+          font-weight: 600;
+          color: var(--vm-ink);
+          font-family: inherit;
+        }
+        .vm-date-input:focus-visible { outline: none; }
+
         .vm-refresh-btn {
           display: inline-flex;
           align-items: center;
@@ -355,6 +520,40 @@ export default function VentasModule({
         .vm-refresh-btn:active:not(:disabled) { transform: scale(0.98); }
         .vm-refresh-btn:disabled { background: #9aa3ad; cursor: not-allowed; }
         .vm-refresh-btn:focus-visible { outline: 2px solid var(--vm-ink); outline-offset: 2px; }
+
+        .vm-pdf-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 11px 18px;
+          border: 1.5px solid var(--vm-green);
+          border-radius: 10px;
+          background: var(--vm-green);
+          color: #fff;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.15s ease, transform 0.1s ease;
+        }
+        .vm-pdf-btn:hover:not(:disabled) { background: var(--vm-green-deep); border-color: var(--vm-green-deep); }
+        .vm-pdf-btn:active:not(:disabled) { transform: scale(0.98); }
+        .vm-pdf-btn:disabled { background: #9aa3ad; border-color: #9aa3ad; cursor: not-allowed; }
+        .vm-pdf-btn:focus-visible { outline: 2px solid var(--vm-green-deep); outline-offset: 2px; }
+
+        .vm-pdf-banner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          padding: 14px 16px;
+          margin-bottom: 24px;
+          background: #fff8e6;
+          border: 1px solid #f5deA0;
+          border-left: 3px solid var(--vm-amber);
+          border-radius: 10px;
+          color: #7a5b06;
+        }
+        .vm-pdf-banner .vm-error-text { color: #7a5b06; }
 
         .vm-error-banner {
           display: flex;
@@ -514,22 +713,27 @@ export default function VentasModule({
 
         @media (max-width: 640px) {
           .vm-page-header { flex-direction: column; align-items: stretch; }
-          .vm-refresh-btn { justify-content: center; }
+          .vm-header-actions { flex-direction: column; align-items: stretch; width: 100%; }
+          .vm-date-field { height: 44px; width: 100%; box-sizing: border-box; }
+          .vm-refresh-btn, .vm-pdf-btn { justify-content: center; width: 100%; box-sizing: border-box; min-height: 44px; }
           .vm-summary-card { flex-direction: column; align-items: stretch; padding: 22px; }
           .vm-summary-count { flex-direction: row; align-items: center; justify-content: space-between; align-self: stretch; }
           .vm-panel { padding: 20px; }
           .vm-user-row { padding: 12px; }
           .vm-total-final { flex-direction: column; align-items: flex-start; }
           .vm-total-final-amount { font-size: 22px; }
+          .vm-pdf-banner { flex-wrap: wrap; }
         }
 
         @media (max-width: 380px) {
           .vm-summary-total { font-size: 28px; }
           .vm-user-info strong { font-size: 14px; }
+          .vm-date-input { font-size: 13px; }
         }
 
         @media (prefers-reduced-motion: reduce) {
           .vm-refresh-btn,
+          .vm-pdf-btn,
           .vm-user-row,
           :global(.vm-spin) {
             transition: none !important;

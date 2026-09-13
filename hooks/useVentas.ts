@@ -18,6 +18,351 @@ import type {
 
 
 // ============================================================
+// UTILIDAD DE FECHA LOCAL (SIN DESFASE POR UTC)
+// ============================================================
+//
+// new Date().toISOString() por sí solo no genera el problema,
+// pero construir un rango de "día completo" hay que hacerlo con
+// año/mes/día LOCALES (getFullYear/getMonth/getDate), no parseando
+// strings como "YYYY-MM-DD" con `new Date(string)" (eso sí se
+// interpreta en UTC y puede correr el día). Esta función se usa
+// tanto para "hoy" como para cualquier fecha seleccionada.
+// ============================================================
+
+export function construirRangoDelDia(fecha: Date): {
+  inicioISO: string;
+  finISO: string;
+} {
+
+  const inicioDia = new Date(
+    fecha.getFullYear(),
+    fecha.getMonth(),
+    fecha.getDate(),
+    0,
+    0,
+    0,
+    0
+  );
+
+  const finDia = new Date(
+    fecha.getFullYear(),
+    fecha.getMonth(),
+    fecha.getDate(),
+    23,
+    59,
+    59,
+    999
+  );
+
+  return {
+    inicioISO: inicioDia.toISOString(),
+    finISO: finDia.toISOString(),
+  };
+
+}
+
+
+// ============================================================
+// CONSULTA COMPARTIDA: VENTAS ENTRE DOS FECHAS (ISO)
+// ============================================================
+//
+// Esta función contiene EXACTAMENTE la misma lógica de consulta
+// y transformación que antes vivía dentro de `cargarVentas`.
+// Se extrajo para poder reutilizarla:
+//   1) en el hook (comportamiento actual, "hoy"), y
+//   2) en la exportación a PDF (fecha seleccionada por el usuario).
+//
+// Ante un error consultando "ventas", se lanza un error (en vez de
+// solo hacer console.error) para que cada llamador decida cómo
+// mostrarlo: el hook lo captura y setea `error`; el flujo de PDF
+// lo captura y muestra "No fue posible generar el reporte PDF."
+// ============================================================
+
+export async function consultarVentasEntreFechas(
+  inicioISO: string,
+  finISO: string
+): Promise<VentaDetalle[]> {
+
+  // ==========================================================
+  // CONSULTAR VENTAS
+  // ==========================================================
+
+  const {
+    data: ventasData,
+    error: ventasError,
+  } = await supabase
+    .from("ventas")
+    .select(`
+      id,
+      mesa_id,
+      usuario_id,
+      total,
+      estado,
+      created_at,
+      closed_at,
+
+      mesas (
+        numero
+      ),
+
+      profiles (
+        nombre
+      )
+    `)
+    .eq(
+      "estado",
+      "cerrada"
+    )
+    .gte(
+      "created_at",
+      inicioISO
+    )
+    .lte(
+      "created_at",
+      finISO
+    )
+    .order(
+      "created_at",
+      {
+        ascending: true,
+      }
+    );
+
+
+  // ==========================================================
+  // VALIDAR ERROR
+  // ==========================================================
+
+  if (ventasError) {
+
+    console.error(
+      "Error cargando ventas:",
+      ventasError
+    );
+
+    throw new Error(
+      "No fue posible cargar las ventas."
+    );
+
+  }
+
+
+  // ==========================================================
+  // SI NO HAY VENTAS
+  // ==========================================================
+
+  if (
+    !ventasData ||
+    ventasData.length === 0
+  ) {
+
+    return [];
+
+  }
+
+
+  // ==========================================================
+  // OBTENER IDS DE LAS VENTAS
+  // ==========================================================
+
+  const ventasIds =
+    ventasData.map(
+      (venta) => venta.id
+    );
+
+
+  // ==========================================================
+  // CONSULTAR DETALLES DE VENTAS
+  // ==========================================================
+
+  const {
+    data: detallesData,
+    error: detallesError,
+  } = await supabase
+    .from("venta_detalles")
+    .select(`
+      id,
+      venta_id,
+      producto_id,
+      nombre_producto,
+      precio,
+      cantidad,
+      subtotal
+    `)
+    .in(
+      "venta_id",
+      ventasIds
+    );
+
+
+  // ==========================================================
+  // VALIDAR ERROR DE DETALLES
+  // ==========================================================
+
+  if (detallesError) {
+
+    console.error(
+      "Error cargando detalles:",
+      detallesError
+    );
+
+  }
+
+
+  // ==========================================================
+  // CREAR MAPA DE PRODUCTOS POR VENTA
+  // ==========================================================
+
+  const productosPorVenta =
+    new Map<
+      number,
+      ProductoVenta[]
+    >();
+
+
+  (
+    detallesData || []
+  ).forEach(
+    (detalle: any) => {
+
+
+      const producto: ProductoVenta = {
+
+        id:
+          detalle.id,
+
+        productoId:
+          detalle.producto_id
+            ?? null,
+
+        nombreProducto:
+          detalle.nombre_producto
+            ?? "Producto sin nombre",
+
+        precio:
+          Number(
+            detalle.precio || 0
+          ),
+
+        cantidad:
+          Number(
+            detalle.cantidad || 0
+          ),
+
+        subtotal:
+          Number(
+            detalle.subtotal || 0
+          ),
+
+      };
+
+
+      const productosActuales =
+        productosPorVenta.get(
+          detalle.venta_id
+        )
+        ?? [];
+
+
+      productosActuales.push(
+        producto
+      );
+
+
+      productosPorVenta.set(
+        detalle.venta_id,
+        productosActuales
+      );
+
+    }
+  );
+
+
+  // ==========================================================
+  // TRANSFORMAR VENTAS
+  // ==========================================================
+
+  const ventasTransformadas:
+    VentaDetalle[] =
+    ventasData.map(
+      (venta: any) => {
+
+        return {
+
+          id:
+            venta.id,
+
+          mesaId:
+            venta.mesa_id,
+
+          usuarioId:
+            venta.usuario_id,
+
+          total:
+            Number(
+              venta.total || 0
+            ),
+
+          estado:
+            venta.estado,
+
+          createdAt:
+            venta.created_at,
+
+          closedAt:
+            venta.closed_at,
+
+          mesaNumero:
+            venta.mesas?.numero
+              ?? null,
+
+          usuarioNombre:
+            venta.profiles?.nombre
+              ??
+            "Ventas sin usuario",
+
+          productos:
+            productosPorVenta.get(
+              venta.id
+            )
+            ?? [],
+
+        };
+
+      }
+    );
+
+
+  return ventasTransformadas;
+
+}
+
+
+// ============================================================
+// OBTENER VENTAS DE UNA FECHA ESPECÍFICA
+// ============================================================
+//
+// Usada por la exportación a PDF: NO toca el estado del hook,
+// solo consulta y retorna. Permite exportar "hoy" o cualquier
+// otra fecha que el usuario seleccione.
+// ============================================================
+
+export async function obtenerVentasPorFecha(
+  fecha: Date
+): Promise<VentaDetalle[]> {
+
+  const { inicioISO, finISO } =
+    construirRangoDelDia(fecha);
+
+  return consultarVentasEntreFechas(
+    inicioISO,
+    finISO
+  );
+
+}
+
+
+// ============================================================
 // HOOK DE VENTAS
 // ============================================================
 
@@ -39,53 +384,7 @@ export function useVentas(): UseVentasResult {
 
 
   // ==========================================================
-  // OBTENER INICIO DEL DÍA
-  // ==========================================================
-
-  const obtenerInicioDia = () => {
-
-    const ahora = new Date();
-
-    const inicioDia = new Date(
-      ahora.getFullYear(),
-      ahora.getMonth(),
-      ahora.getDate(),
-      0,
-      0,
-      0,
-      0
-    );
-
-    return inicioDia.toISOString();
-
-  };
-
-
-  // ==========================================================
-  // OBTENER FIN DEL DÍA
-  // ==========================================================
-
-  const obtenerFinDia = () => {
-
-    const ahora = new Date();
-
-    const finDia = new Date(
-      ahora.getFullYear(),
-      ahora.getMonth(),
-      ahora.getDate(),
-      23,
-      59,
-      59,
-      999
-    );
-
-    return finDia.toISOString();
-
-  };
-
-
-  // ==========================================================
-  // CARGAR VENTAS
+  // CARGAR VENTAS (comportamiento sin cambios: ventas de HOY)
   // ==========================================================
 
   const cargarVentas = useCallback(
@@ -98,296 +397,16 @@ export function useVentas(): UseVentasResult {
         setError(null);
 
 
-        const inicioDia =
-          obtenerInicioDia();
-
-        const finDia =
-          obtenerFinDia();
+        const { inicioISO, finISO } =
+          construirRangoDelDia(new Date());
 
 
-        // ======================================================
-        // CONSULTAR VENTAS
-        // ======================================================
-
-        const {
-          data: ventasData,
-          error: ventasError,
-        } = await supabase
-          .from("ventas")
-          .select(`
-            id,
-            mesa_id,
-            usuario_id,
-            total,
-            estado,
-            created_at,
-            closed_at,
-
-            mesas (
-              numero
-            ),
-
-            profiles (
-              nombre
-            )
-          `)
-          .eq(
-            "estado",
-            "cerrada"
-          )
-          .gte(
-            "created_at",
-            inicioDia
-          )
-          .lte(
-            "created_at",
-            finDia
-          )
-          .order(
-            "created_at",
-            {
-              ascending: true,
-            }
+        const ventasTransformadas =
+          await consultarVentasEntreFechas(
+            inicioISO,
+            finISO
           );
 
-
-        // ======================================================
-        // VALIDAR ERROR
-        // ======================================================
-
-        if (ventasError) {
-
-          console.error(
-            "Error cargando ventas:",
-            ventasError
-          );
-
-          setError(
-            "No fue posible cargar las ventas."
-          );
-
-          setVentas([]);
-
-          return;
-
-        }
-
-
-        // ======================================================
-        // SI NO HAY VENTAS
-        // ======================================================
-
-        if (
-          !ventasData ||
-          ventasData.length === 0
-        ) {
-
-          setVentas([]);
-
-          return;
-
-        }
-
-
-        // ======================================================
-        // OBTENER IDS DE LAS VENTAS
-        // ======================================================
-
-        const ventasIds =
-          ventasData.map(
-            (venta) => venta.id
-          );
-
-
-        // ======================================================
-        // CONSULTAR DETALLES DE VENTAS
-        // ======================================================
-
-        const {
-          data: detallesData,
-          error: detallesError,
-        } = await supabase
-          .from("venta_detalles")
-          .select(`
-            id,
-            venta_id,
-            producto_id,
-            nombre_producto,
-            precio,
-            cantidad,
-            subtotal
-          `)
-          .in(
-            "venta_id",
-            ventasIds
-          );
-
-
-        // ======================================================
-        // VALIDAR ERROR DE DETALLES
-        // ======================================================
-
-        if (detallesError) {
-
-          console.error(
-            "Error cargando detalles:",
-            detallesError
-          );
-
-          setError(
-            "No fue posible cargar los productos de las ventas."
-          );
-
-        }
-
-
-        // ======================================================
-        // CREAR MAPA DE PRODUCTOS POR VENTA
-        // ======================================================
-
-        const productosPorVenta =
-          new Map<
-            number,
-            ProductoVenta[]
-          >();
-
-
-        (
-          detallesData || []
-        ).forEach(
-          (detalle: any) => {
-
-
-            const producto: ProductoVenta = {
-
-              id:
-                detalle.id,
-
-              productoId:
-                detalle.producto_id
-                  ?? null,
-
-              nombreProducto:
-                detalle.nombre_producto
-                  ?? "Producto sin nombre",
-
-              precio:
-                Number(
-                  detalle.precio || 0
-                ),
-
-              cantidad:
-                Number(
-                  detalle.cantidad || 0
-                ),
-
-              subtotal:
-                Number(
-                  detalle.subtotal || 0
-                ),
-
-            };
-
-
-            const productosActuales =
-              productosPorVenta.get(
-                detalle.venta_id
-              )
-              ?? [];
-
-
-            productosActuales.push(
-              producto
-            );
-
-
-            productosPorVenta.set(
-              detalle.venta_id,
-              productosActuales
-            );
-
-          }
-        );
-
-
-        // ======================================================
-        // TRANSFORMAR VENTAS
-        // ======================================================
-
-        const ventasTransformadas:
-          VentaDetalle[] =
-          ventasData.map(
-            (venta: any) => {
-
-
-              return {
-
-                // ==================================================
-                // INFORMACIÓN DE LA VENTA
-                // ==================================================
-
-                id:
-                  venta.id,
-
-                mesaId:
-                  venta.mesa_id,
-
-                usuarioId:
-                  venta.usuario_id,
-
-                total:
-                  Number(
-                    venta.total || 0
-                  ),
-
-                estado:
-                  venta.estado,
-
-                createdAt:
-                  venta.created_at,
-
-                closedAt:
-                  venta.closed_at,
-
-
-                // ==================================================
-                // MESA
-                // ==================================================
-
-                mesaNumero:
-                  venta.mesas?.numero
-                    ?? null,
-
-
-                // ==================================================
-                // USUARIO
-                // ==================================================
-
-                usuarioNombre:
-                  venta.profiles?.nombre
-                    ??
-                  "Ventas sin usuario",
-
-
-                // ==================================================
-                // PRODUCTOS
-                // ==================================================
-
-                productos:
-                  productosPorVenta.get(
-                    venta.id
-                  )
-                  ?? [],
-
-              };
-
-            }
-          );
-
-
-        // ======================================================
-        // GUARDAR VENTAS
-        // ======================================================
 
         setVentas(
           ventasTransformadas
@@ -402,7 +421,9 @@ export function useVentas(): UseVentasResult {
         );
 
         setError(
-          "Ocurrió un error al cargar las ventas."
+          err instanceof Error && err.message
+            ? err.message
+            : "Ocurrió un error al cargar las ventas."
         );
 
         setVentas([]);
@@ -457,10 +478,6 @@ export function useVentas(): UseVentasResult {
                 ?? "sin-usuario";
 
 
-            // ==================================================
-            // CREAR USUARIO
-            // ==================================================
-
             if (
               !mapa.has(usuarioId)
             ) {
@@ -494,24 +511,12 @@ export function useVentas(): UseVentasResult {
               mapa.get(usuarioId)!;
 
 
-            // ==================================================
-            // AUMENTAR CANTIDAD
-            // ==================================================
-
             resumen.cantidadVentas += 1;
 
-
-            // ==================================================
-            // SUMAR TOTAL
-            // ==================================================
 
             resumen.totalVentas +=
               venta.total;
 
-
-            // ==================================================
-            // AGREGAR VENTA
-            // ==================================================
 
             resumen.ventas.push(
               venta
