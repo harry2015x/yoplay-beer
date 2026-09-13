@@ -507,24 +507,27 @@ export default function VentasModule({
         }
 
         .vm-page-header {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-          align-items: center;
-          gap: 20px;
-          margin-bottom: 24px;
-        }
-        .vm-page-header > :first-child { grid-column: 1; }
-        .vm-page-header h2 { margin: 0 0 4px; font-size: 22px; font-weight: 650; letter-spacing: -0.01em; color: var(--vm-ink); }
-        .vm-page-header p { margin: 0; font-size: 14px; color: var(--vm-text-muted); }
-
-        .vm-header-actions {
-          grid-column: 2;
           display: flex;
           align-items: center;
-          justify-content: center;
+          justify-content: space-between;
+          gap: 20px;
+          margin-bottom: 24px;
+          width: 100%;
+        }
+        
+        .vm-page-header > :first-child {
+          flex: 1 1 auto;
+          min-width: 0;
+        }
+        
+        .vm-header-actions {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
           gap: 10px;
           flex-wrap: wrap;
-          width: max-content;
+          flex: 0 0 auto;
+          width: auto;
           max-width: 100%;
         }
 
