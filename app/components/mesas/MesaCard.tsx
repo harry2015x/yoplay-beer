@@ -8,6 +8,15 @@ type Props = {
   onAbrir: (id: number) => void;
   onGestionar: (id: number) => void;
   onSolicitarCierre: (mesa: Mesa) => void;
+
+  /** true si el usuario autenticado es administrador. */
+  esAdministrador: boolean;
+
+  /** Abre la confirmación de eliminación (solo se llama si la mesa está Libre). */
+  onSolicitarEliminar: (mesa: Mesa) => void;
+
+  /** true mientras esta mesa en particular se está eliminando en Supabase. */
+  eliminando?: boolean;
 };
 
 function tiempoAbierta(desde: Date | null): string | null {
@@ -23,7 +32,15 @@ function tiempoAbierta(desde: Date | null): string | null {
   return `${horas}h ${resto}min abierta`;
 }
 
-export default function MesaCard({ mesa, onAbrir, onGestionar, onSolicitarCierre }: Props) {
+export default function MesaCard({
+  mesa,
+  onAbrir,
+  onGestionar,
+  onSolicitarCierre,
+  esAdministrador,
+  onSolicitarEliminar,
+  eliminando = false,
+}: Props) {
   const [, forzarRefresco] = useState(0);
   const libre = mesa.estado === "Libre";
 
@@ -86,23 +103,52 @@ export default function MesaCard({ mesa, onAbrir, onGestionar, onSolicitarCierre
       )}
 
       {libre ? (
-        <button
-          onClick={() => onAbrir(mesa.id)}
-          aria-label={`Abrir mesa ${mesa.numero}`}
-          className="mesa-btn"
-          style={{
-            width: "100%",
-            background: "#16a34a",
-            color: "white",
-            border: "none",
-            padding: "12px",
-            borderRadius: "8px",
-            cursor: "pointer",
-            fontWeight: 700,
-          }}
-        >
-          Abrir mesa
-        </button>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <button
+            onClick={() => onAbrir(mesa.id)}
+            aria-label={`Abrir mesa ${mesa.numero}`}
+            className="mesa-btn"
+            style={{
+              width: "100%",
+              background: "#16a34a",
+              color: "white",
+              border: "none",
+              padding: "12px",
+              borderRadius: "8px",
+              cursor: "pointer",
+              fontWeight: 700,
+            }}
+          >
+            Abrir mesa
+          </button>
+
+          {/* ===================================================
+              ELIMINAR MESA (SOLO ADMINISTRADOR, SOLO SI ESTÁ LIBRE)
+          =================================================== */}
+
+          {esAdministrador && (
+            <button
+              onClick={() => onSolicitarEliminar(mesa)}
+              disabled={eliminando}
+              aria-label={`Eliminar Mesa ${mesa.numero}`}
+              className="mesa-btn"
+              style={{
+                width: "100%",
+                minHeight: "44px",
+                background: "transparent",
+                color: "#ef4444",
+                border: "1px solid #fecaca",
+                padding: "10px",
+                borderRadius: "8px",
+                cursor: eliminando ? "default" : "pointer",
+                opacity: eliminando ? 0.6 : 1,
+                fontWeight: 700,
+              }}
+            >
+              {eliminando ? "Eliminando..." : "🗑️ Eliminar"}
+            </button>
+          )}
+        </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           <button

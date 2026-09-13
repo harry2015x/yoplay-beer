@@ -35,6 +35,13 @@ type Props = {
 
   estado: UseMesasResult;
 
+  /**
+   * true si el usuario autenticado tiene rol "administrador"
+   * (ver hooks/useAuth.ts -> perfil.rol). Controla la visibilidad
+   * de "Nueva mesa" y "Eliminar mesa".
+   */
+  esAdministrador: boolean;
+
 };
 
 
@@ -45,6 +52,8 @@ type Props = {
 export default function MesasModule({
 
   estado,
+
+  esAdministrador,
 
 }: Props) {
 
@@ -66,6 +75,14 @@ export default function MesasModule({
   // ==========================================================
 
   const [mesaAConfirmar, setMesaAConfirmar] =
+    useState<Mesa | null>(null);
+
+
+  // ==========================================================
+  // MESA A ELIMINAR (solo administrador)
+  // ==========================================================
+
+  const [mesaAEliminar, setMesaAEliminar] =
     useState<Mesa | null>(null);
 
 
@@ -174,6 +191,19 @@ export default function MesasModule({
     // ========================================================
 
     cerrarMesa,
+
+
+    // ========================================================
+    // CREAR / ELIMINAR MESA (solo administrador)
+    // ========================================================
+
+    crearMesa,
+
+    eliminarMesa,
+
+    creandoMesa,
+
+    eliminandoMesaId,
 
 
   } = estado;
@@ -369,6 +399,71 @@ export default function MesasModule({
 
 
   // ==========================================================
+  // CREAR NUEVA MESA (solo administrador)
+  // ==========================================================
+
+  async function crearNuevaMesa() {
+
+    if (!esAdministrador || creandoMesa) {
+
+      return;
+
+    }
+
+    await crearMesa();
+
+  }
+
+
+  // ==========================================================
+  // SOLICITAR ELIMINACIÓN DE UNA MESA (solo administrador)
+  // ==========================================================
+
+  function solicitarEliminacion(
+
+    mesa: Mesa
+
+  ) {
+
+    if (!esAdministrador) {
+
+      return;
+
+    }
+
+    setMesaAEliminar(mesa);
+
+  }
+
+
+  // ==========================================================
+  // CONFIRMAR ELIMINACIÓN
+  // ==========================================================
+
+  async function confirmarEliminacion() {
+
+    if (!mesaAEliminar) {
+
+      return;
+
+    }
+
+    const exito = await eliminarMesa(
+
+      mesaAEliminar.id
+
+    );
+
+    if (exito) {
+
+      setMesaAEliminar(null);
+
+    }
+
+  }
+
+
+  // ==========================================================
   // RENDER
   // ==========================================================
 
@@ -417,6 +512,25 @@ export default function MesasModule({
             filter 120ms ease,
 
             transform 120ms ease;
+
+        }
+
+
+        @media (max-width: 640px) {
+
+          .mesas-encabezado {
+
+            flex-direction: column;
+
+            align-items: stretch;
+
+          }
+
+          .mesas-btn-nueva {
+
+            width: 100%;
+
+          }
 
         }
 
@@ -561,53 +675,160 @@ export default function MesasModule({
 
       <div
 
+        className="mesas-encabezado"
+
         style={{
 
           marginBottom:
 
             "18px",
 
+          display:
+
+            "flex",
+
+          flexWrap:
+
+            "wrap",
+
+          justifyContent:
+
+            "space-between",
+
+          alignItems:
+
+            "center",
+
+          gap:
+
+            "12px",
+
         }}
 
       >
 
 
-        <h2
+        <div>
 
-          style={{
+          <h2
 
-            margin:
+            style={{
 
-              0,
+              margin:
 
-          }}
+                0,
 
-        >
+            }}
 
-          🪑 Mesas
+          >
 
-        </h2>
+            🪑 Mesas
+
+          </h2>
 
 
-        <p
+          <p
 
-          style={{
+            style={{
 
-            margin:
+              margin:
 
-              "4px 0 0",
+                "4px 0 0",
 
-            color:
+              color:
 
-              "#6b7280",
+                "#6b7280",
 
-          }}
+            }}
 
-        >
+          >
 
-          Gestión y control de mesas
+            Gestión y control de mesas
 
-        </p>
+          </p>
+
+        </div>
+
+
+        {/* =====================================================
+            NUEVA MESA (SOLO ADMINISTRADOR)
+        ===================================================== */}
+
+        {esAdministrador && (
+
+          <button
+
+            onClick={crearNuevaMesa}
+
+            disabled={creandoMesa}
+
+            aria-label="Crear nueva mesa"
+
+            className="mesa-btn mesas-btn-nueva"
+
+            style={{
+
+              background:
+
+                "#f59e0b",
+
+              color:
+
+                "white",
+
+              border:
+
+                "none",
+
+              borderRadius:
+
+                "10px",
+
+              padding:
+
+                "12px 18px",
+
+              fontWeight:
+
+                700,
+
+              cursor:
+
+                creandoMesa
+
+                  ? "default"
+
+                  : "pointer",
+
+              opacity:
+
+                creandoMesa
+
+                  ? 0.7
+
+                  : 1,
+
+              minHeight:
+
+                "44px",
+
+              whiteSpace:
+
+                "nowrap",
+
+            }}
+
+          >
+
+            {creandoMesa
+
+              ? "Creando mesa..."
+
+              : "➕ Nueva mesa"}
+
+          </button>
+
+        )}
 
 
       </div>
@@ -952,6 +1173,16 @@ export default function MesasModule({
 
                   onSolicitarCierre={solicitarCierre}
 
+                  esAdministrador={esAdministrador}
+
+                  onSolicitarEliminar={solicitarEliminacion}
+
+                  eliminando={
+
+                    eliminandoMesaId === mesa.id
+
+                  }
+
                 />
 
               )
@@ -1137,6 +1368,65 @@ Total: ${formatoCOP(
         onCancelar={() =>
 
           setMesaAConfirmar(null)
+
+        }
+
+      />
+
+
+      {/* =====================================================
+          CONFIRMACIÓN DE ELIMINACIÓN (SOLO ADMINISTRADOR)
+      ===================================================== */}
+
+      <ConfirmModal
+
+        abierto={
+
+          esAdministrador &&
+
+          mesaAEliminar !== null
+
+        }
+
+        titulo="Eliminar mesa"
+
+        mensaje={
+
+          mesaAEliminar
+
+            ? `¿Deseas eliminar la Mesa ${mesaAEliminar.numero}?\n\nEsta acción no se puede deshacer.`
+
+            : ""
+
+        }
+
+        etiquetaConfirmar={
+
+          mesaAEliminar &&
+
+          eliminandoMesaId ===
+
+            mesaAEliminar.id
+
+            ? "Eliminando..."
+
+            : "🗑️ Eliminar"
+
+        }
+
+        etiquetaCancelar="Cancelar"
+
+        peligroso={true}
+
+        onConfirmar={
+
+          confirmarEliminacion
+
+        }
+
+        onCancelar={() =>
+
+          setMesaAEliminar(null)
 
         }
 

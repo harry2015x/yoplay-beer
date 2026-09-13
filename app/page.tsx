@@ -379,7 +379,9 @@ export default function Home() {
           {/* MESAS */}
           {/* ================================================ */}
 
-          {seccion === "Mesas" && <MesasModule estado={mesasEstado} />}
+          {seccion === "Mesas" && (
+            <MesasModule estado={mesasEstado} esAdministrador={esAdministrador} />
+          )}
 
           {/* ================================================ */}
           {/* VENTAS */}

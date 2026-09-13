@@ -39,6 +39,16 @@ export function useMesas() {
     useState<Notificacion | null>(null);
 
   // ============================================================
+  // CREAR / ELIMINAR MESA (solo administrador)
+  // ============================================================
+
+  const [creandoMesa, setCreandoMesa] =
+    useState(false);
+
+  const [eliminandoMesaId, setEliminandoMesaId] =
+    useState<number | null>(null);
+
+  // ============================================================
   // NOTIFICACIONES
   // ============================================================
 
@@ -662,6 +672,249 @@ export function useMesas() {
   }
 
   // ============================================================
+  // CREAR MESA (solo administrador)
+  // ============================================================
+  //
+  // - Obtiene el número más alto de mesa existente directamente
+  //   desde Supabase (no del estado local) para evitar duplicados
+  //   si hay más de un administrador conectado.
+  // - Crea la siguiente mesa consecutiva con estado LIBRE.
+  // - No reutiliza ni reordena números de mesas eliminadas.
+  // ============================================================
+
+  async function crearMesa(): Promise<boolean> {
+    setCreandoMesa(true);
+
+    // ==========================================================
+    // OBTENER EL NÚMERO MÁS ALTO ACTUAL
+    // ==========================================================
+
+    const {
+      data: ultimaMesa,
+      error: errorUltimaMesa,
+    } =
+      await supabase
+        .from("mesas")
+        .select("numero")
+        .order("numero", {
+          ascending: false,
+        })
+        .limit(1)
+        .maybeSingle();
+
+    if (errorUltimaMesa) {
+      console.error(
+        "Error obteniendo el número de mesa:",
+        errorUltimaMesa
+      );
+
+      mostrarNotificacion(
+        "error",
+        "No fue posible crear la mesa."
+      );
+
+      setCreandoMesa(false);
+
+      return false;
+    }
+
+    const siguienteNumero =
+      (ultimaMesa?.numero ?? 0) + 1;
+
+    // ==========================================================
+    // INSERTAR LA NUEVA MESA
+    // ==========================================================
+
+    const {
+      data: mesaCreada,
+      error: errorCrear,
+    } =
+      await supabase
+        .from("mesas")
+        .insert([
+          {
+            numero: siguienteNumero,
+            estado: "libre",
+          },
+        ])
+        .select()
+        .single();
+
+    if (errorCrear || !mesaCreada) {
+      console.error(
+        "Error creando mesa:",
+        errorCrear
+      );
+
+      // Código de Postgres para violación de restricción UNIQUE
+      const esDuplicado =
+        errorCrear?.code === "23505";
+
+      mostrarNotificacion(
+        "error",
+        esDuplicado
+          ? "La mesa ya existe. Intenta nuevamente."
+          : "No fue posible crear la mesa."
+      );
+
+      setCreandoMesa(false);
+
+      return false;
+    }
+
+    // ==========================================================
+    // ACTUALIZAR ESTADO LOCAL (ORDENADO POR NÚMERO)
+    // ==========================================================
+
+    setMesas((prev) =>
+      [
+        ...prev,
+        {
+          id: mesaCreada.id,
+          numero: mesaCreada.numero,
+          estado: "Libre" as const,
+          productos: [],
+          total: 0,
+          abiertaDesde: null,
+        },
+      ].sort(
+        (a, b) => a.numero - b.numero
+      )
+    );
+
+    mostrarNotificacion(
+      "success",
+      `Mesa ${mesaCreada.numero} creada correctamente.`
+    );
+
+    setCreandoMesa(false);
+
+    return true;
+  }
+
+  // ============================================================
+  // ELIMINAR MESA (solo administrador)
+  // ============================================================
+  //
+  // Reglas (ver también las políticas RLS en Supabase):
+  // - No se puede eliminar una mesa OCUPADA.
+  // - No se puede eliminar una mesa con productos/pedido pendiente
+  //   o con total > 0 (pedido activo aún no facturado).
+  // - Al eliminar, el resto de las mesas conserva su numeración
+  //   (no se reorganiza).
+  // ============================================================
+
+  async function eliminarMesa(
+    id: number
+  ): Promise<boolean> {
+
+    // ==========================================================
+    // EVITAR DOBLE CLIC
+    // ==========================================================
+
+    if (eliminandoMesaId !== null) {
+      return false;
+    }
+
+    // ==========================================================
+    // BUSCAR MESA
+    // ==========================================================
+
+    const mesa =
+      mesas.find(
+        (m) => m.id === id
+      );
+
+    if (!mesa) {
+      mostrarNotificacion(
+        "error",
+        "No se encontró la mesa."
+      );
+
+      return false;
+    }
+
+    // ==========================================================
+    // VALIDAR ESTADO Y PEDIDO/VENTA ACTIVOS
+    // ==========================================================
+
+    if (mesa.estado === "Ocupada") {
+      mostrarNotificacion(
+        "error",
+        "No puedes eliminar una mesa ocupada."
+      );
+
+      return false;
+    }
+
+    if (
+      mesa.productos.length > 0 ||
+      mesa.total > 0
+    ) {
+      mostrarNotificacion(
+        "error",
+        "No puedes eliminar una mesa con un pedido pendiente."
+      );
+
+      return false;
+    }
+
+    setEliminandoMesaId(id);
+
+    // ==========================================================
+    // ELIMINAR EN SUPABASE
+    // ==========================================================
+
+    const {
+      error: errorEliminar,
+    } =
+      await supabase
+        .from("mesas")
+        .delete()
+        .eq("id", id)
+        .eq("estado", "libre"); // refuerza la regla también a nivel de consulta
+
+    if (errorEliminar) {
+      console.error(
+        "Error eliminando mesa:",
+        errorEliminar
+      );
+
+      mostrarNotificacion(
+        "error",
+        "No fue posible eliminar la mesa. Intenta nuevamente."
+      );
+
+      setEliminandoMesaId(null);
+
+      return false;
+    }
+
+    // ==========================================================
+    // ACTUALIZAR ESTADO LOCAL
+    // ==========================================================
+
+    setMesas((prev) =>
+      prev.filter(
+        (m) => m.id !== id
+      )
+    );
+
+    if (mesaSeleccionadaId === id) {
+      setMesaSeleccionadaId(null);
+    }
+
+    mostrarNotificacion(
+      "success",
+      `Mesa ${mesa.numero} eliminada correctamente.`
+    );
+
+    setEliminandoMesaId(null);
+
+    return true;
+  }
+
+  // ============================================================
   // CERRAR MESA Y REGISTRAR VENTA
   // ============================================================
 
@@ -1102,6 +1355,18 @@ export function useMesas() {
     // ==========================================================
 
     liberarMesa,
+
+    // ==========================================================
+    // CREAR / ELIMINAR MESA (solo administrador)
+    // ==========================================================
+
+    crearMesa,
+
+    eliminarMesa,
+
+    creandoMesa,
+
+    eliminandoMesaId,
 
     // ==========================================================
     // PEDIDOS
