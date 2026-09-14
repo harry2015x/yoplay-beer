@@ -424,95 +424,6 @@ export default function VentasModule({
           </div>
 
           {mensajePDFFecha && <p className="vm-fecha-card__mensaje">{mensajePDFFecha}</p>}
-
-          <style jsx>{`
-            .vm-fecha-card {
-              margin-top: 16px;
-              padding: 18px 20px;
-              background: #fff;
-              border-radius: 14px;
-              box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
-              display: flex;
-              align-items: center;
-              justify-content: space-between;
-              gap: 16px;
-              flex-wrap: wrap;
-            }
-            .vm-fecha-card__texto strong {
-              display: block;
-              font-size: 14.5px;
-              color: #0f172a;
-            }
-            .vm-fecha-card__texto p {
-              margin: 4px 0 0;
-              color: #64748b;
-              font-size: 13px;
-            }
-            .vm-fecha-card__controles {
-              display: flex;
-              gap: 10px;
-              align-items: center;
-              flex-wrap: wrap;
-            }
-            .vm-fecha-card__campo {
-              display: flex;
-              align-items: center;
-              gap: 6px;
-              background: #f1f5f9;
-              border-radius: 10px;
-              padding: 10px 12px;
-            }
-            .vm-fecha-card__campo input[type="date"] {
-              border: none;
-              background: transparent;
-              font-size: 13.5px;
-              color: #0f172a;
-              outline: none;
-            }
-            .vm-fecha-card__boton {
-              display: inline-flex;
-              align-items: center;
-              gap: 6px;
-              border: none;
-              border-radius: 10px;
-              padding: 11px 18px;
-              font-weight: 700;
-              font-size: 13.5px;
-              color: #fff;
-              background: #0d1512;
-              cursor: pointer;
-              white-space: nowrap;
-            }
-            .vm-fecha-card__boton:disabled {
-              opacity: 0.6;
-              cursor: not-allowed;
-            }
-            .vm-fecha-card__mensaje {
-              width: 100%;
-              margin: 4px 0 0;
-              color: #b45309;
-              font-size: 13px;
-            }
-
-            @media (max-width: 480px) {
-              .vm-fecha-card {
-                flex-direction: column;
-                align-items: stretch;
-              }
-              .vm-fecha-card__controles {
-                flex-direction: column;
-                align-items: stretch;
-              }
-              .vm-fecha-card__campo,
-              .vm-fecha-card__boton {
-                width: 100%;
-                justify-content: center;
-              }
-              .vm-fecha-card__campo input[type="date"] {
-                width: 100%;
-              }
-            }
-          `}</style>
         </div>
       )}
 
@@ -748,6 +659,80 @@ export default function VentasModule({
         }
         .vm-pdf-banner .vm-error-text { color: #7a5b06; }
 
+        .vm-fecha-card {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          flex-wrap: wrap;
+          padding: 18px 20px;
+          margin-bottom: 24px;
+          background: var(--vm-surface);
+          border: 1px solid var(--vm-border);
+          border-radius: 14px;
+        }
+        .vm-fecha-card__texto strong {
+          display: block;
+          font-size: 14.5px;
+          font-weight: 650;
+          color: var(--vm-ink);
+        }
+        .vm-fecha-card__texto p {
+          margin: 4px 0 0;
+          color: var(--vm-text-muted);
+          font-size: 13px;
+        }
+        .vm-fecha-card__controles {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+        .vm-fecha-card__campo {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: var(--vm-surface-muted);
+          border: 1.5px solid var(--vm-border);
+          border-radius: 10px;
+          padding: 10px 12px;
+        }
+        .vm-fecha-card__campo input[type="date"] {
+          border: none;
+          background: transparent;
+          font-size: 13.5px;
+          font-family: inherit;
+          color: var(--vm-ink);
+          outline: none;
+        }
+        .vm-fecha-card__boton {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          border: none;
+          border-radius: 10px;
+          padding: 11px 18px;
+          font-weight: 600;
+          font-size: 13.5px;
+          color: #fff;
+          background: var(--vm-ink);
+          cursor: pointer;
+          white-space: nowrap;
+          transition: background 0.15s ease, transform 0.1s ease;
+        }
+        .vm-fecha-card__boton:hover:not(:disabled) { background: #20262d; }
+        .vm-fecha-card__boton:active:not(:disabled) { transform: scale(0.98); }
+        .vm-fecha-card__boton:disabled {
+          background: #9aa3ad;
+          cursor: not-allowed;
+        }
+        .vm-fecha-card__mensaje {
+          width: 100%;
+          margin: 4px 0 0;
+          color: #7a5b06;
+          font-size: 13px;
+        }
+
         .vm-error-banner {
           display: flex;
           align-items: center;
@@ -916,6 +901,11 @@ export default function VentasModule({
           .vm-total-final { flex-direction: column; align-items: flex-start; }
           .vm-total-final-amount { font-size: 22px; }
           .vm-pdf-banner { flex-wrap: wrap; }
+          .vm-fecha-card { flex-direction: column; align-items: stretch; }
+          .vm-fecha-card__controles { flex-direction: column; align-items: stretch; }
+          .vm-fecha-card__campo,
+          .vm-fecha-card__boton { justify-content: center; width: 100%; box-sizing: border-box; }
+          .vm-fecha-card__campo input[type="date"] { width: 100%; }
         }
 
         @media (max-width: 380px) {
