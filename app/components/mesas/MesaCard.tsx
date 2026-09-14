@@ -17,6 +17,13 @@ type Props = {
 
   /** true mientras esta mesa en particular se está eliminando en Supabase. */
   eliminando?: boolean;
+
+  /**
+   * Nota temporal de la mesa (ej: "El señor de la gorra roja").
+   * Vive solo en el frontend (ver hooks/useMesas.ts) — nunca en Supabase.
+   * Si está vacía o no definida, no se muestra nada.
+   */
+  nota?: string;
 };
 
 function tiempoAbierta(desde: Date | null): string | null {
@@ -40,6 +47,7 @@ export default function MesaCard({
   esAdministrador,
   onSolicitarEliminar,
   eliminando = false,
+  nota,
 }: Props) {
   const [, forzarRefresco] = useState(0);
   const libre = mesa.estado === "Libre";
@@ -89,6 +97,39 @@ export default function MesaCard({
           {libre ? "LIBRE" : "OCUPADA"}
         </span>
       </div>
+
+      {!libre && nota && nota.trim() !== "" && (
+        <div
+          style={{
+            background: "#fef3c7",
+            borderRadius: "10px",
+            padding: "8px 10px",
+          }}
+        >
+          <span
+            style={{
+              display: "block",
+              fontSize: "10px",
+              fontWeight: 700,
+              letterSpacing: "0.03em",
+              color: "#92400e",
+            }}
+          >
+            NOTA DE LA MESA
+          </span>
+          <span
+            style={{
+              display: "block",
+              fontSize: "13px",
+              color: "#78350f",
+              marginTop: "2px",
+              overflowWrap: "break-word",
+            }}
+          >
+            {nota}
+          </span>
+        </div>
+      )}
 
       {!libre && (
         <div style={{ fontSize: "14px", color: "#374151", display: "flex", flexDirection: "column", gap: "2px" }}>

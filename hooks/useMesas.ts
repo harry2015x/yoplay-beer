@@ -77,6 +77,51 @@ export function useMesas() {
   }, [notificacion]);
 
   // ============================================================
+  // NOTA TEMPORAL DE LA MESA (SOLO FRONTEND — NO SUPABASE)
+  // ============================================================
+  //
+  // Ayuda visual para el mesero durante el servicio
+  // (ej: "El señor de la gorra roja").
+  //
+  // REGLAS:
+  // - Vive únicamente en memoria de este hook (estado React).
+  // - NO se guarda en Supabase, NI se crea columna para ella.
+  // - NO se incluye en ventas, reportes, historial ni jornada.
+  // - Se borra automáticamente al cerrar, liberar o eliminar la mesa.
+  // ============================================================
+
+  const [notasMesas, setNotasMesas] =
+    useState<Record<number, string>>({});
+
+  function establecerNotaMesa(
+    id: number,
+    texto: string
+  ) {
+    setNotasMesas((prev) => {
+      // Si el usuario borra el contenido, la nota desaparece.
+      if (texto.trim() === "") {
+        if (!(id in prev)) return prev;
+
+        const { [id]: _omitida, ...resto } = prev;
+
+        return resto;
+      }
+
+      return { ...prev, [id]: texto };
+    });
+  }
+
+  function limpiarNotaMesa(id: number) {
+    setNotasMesas((prev) => {
+      if (!(id in prev)) return prev;
+
+      const { [id]: _omitida, ...resto } = prev;
+
+      return resto;
+    });
+  }
+
+  // ============================================================
   // CARGAR MESAS DESDE SUPABASE
   // ============================================================
 
@@ -660,6 +705,12 @@ export function useMesas() {
     setMesaSeleccionadaId(null);
 
     // ==========================================================
+    // ELIMINAR NOTA TEMPORAL (SOLO FRONTEND)
+    // ==========================================================
+
+    limpiarNotaMesa(mesa.id);
+
+    // ==========================================================
     // NOTIFICACIÓN
     // ==========================================================
 
@@ -903,6 +954,12 @@ export function useMesas() {
     if (mesaSeleccionadaId === id) {
       setMesaSeleccionadaId(null);
     }
+
+    // ==========================================================
+    // ELIMINAR NOTA TEMPORAL (SOLO FRONTEND)
+    // ==========================================================
+
+    limpiarNotaMesa(id);
 
     mostrarNotificacion(
       "success",
@@ -1224,6 +1281,16 @@ export function useMesas() {
     setMesaSeleccionadaId(null);
 
     // ==========================================================
+    // ELIMINAR NOTA TEMPORAL (SOLO FRONTEND)
+    //
+    // La nota es exclusivamente visual durante el servicio: no se
+    // guardó en Supabase ni se incluyó en la venta, así que al
+    // cerrar la mesa simplemente se descarta del estado local.
+    // ==========================================================
+
+    limpiarNotaMesa(mesa.id);
+
+    // ==========================================================
     // NOTIFICACIÓN
     // ==========================================================
 
@@ -1405,6 +1472,14 @@ export function useMesas() {
     // ==========================================================
 
     cerrarMesa,
+
+    // ==========================================================
+    // NOTA TEMPORAL DE LA MESA (SOLO FRONTEND, NO SUPABASE)
+    // ==========================================================
+
+    notasMesas,
+
+    establecerNotaMesa,
   };
 }
 

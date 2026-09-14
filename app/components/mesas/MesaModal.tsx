@@ -42,6 +42,15 @@ type Props = {
   onSolicitarCierre: (
     mesa: Mesa
   ) => void;
+
+  /**
+   * Nota temporal de la mesa (solo frontend, nunca en Supabase).
+   * Cadena vacía = sin nota.
+   */
+  nota: string;
+
+  /** Actualiza la nota temporal de esta mesa en el hook. */
+  onCambiarNota: (texto: string) => void;
 };
 
 const CATEGORIA_TODOS = "Todos";
@@ -56,6 +65,8 @@ export default function MesaModal({
   onDisminuir,
   onEliminar,
   onSolicitarCierre,
+  nota,
+  onCambiarNota,
 }: Props) {
   // ==========================================================
   // BÚSQUEDA Y CATEGORÍA
@@ -145,6 +156,48 @@ export default function MesaModal({
           >
             ×
           </button>
+        </div>
+
+        {/* ========================================= */}
+        {/* NOTA DE LA MESA (SOLO FRONTEND, NO SUPABASE) */}
+        {/* ========================================= */}
+
+        <div className="mesa-modal-nota">
+          <label
+            htmlFor="mesa-modal-nota-input"
+            className="mesa-modal-nota-label"
+          >
+            📝 Nota de la mesa
+          </label>
+
+          <div className="mesa-modal-nota-fila">
+            <input
+              id="mesa-modal-nota-input"
+              type="text"
+              value={nota}
+              onChange={(evento) => onCambiarNota(evento.target.value)}
+              placeholder="Ej: El señor de la gorra roja"
+              maxLength={120}
+              aria-label="Nota de la mesa"
+              className="mesa-modal-nota-input"
+            />
+
+            {nota.trim() !== "" && (
+              <button
+                type="button"
+                onClick={() => onCambiarNota("")}
+                aria-label="Borrar nota de la mesa"
+                className="mesa-btn mesa-modal-nota-borrar"
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          <span className="mesa-modal-nota-ayuda">
+            Solo una ayuda visual mientras la mesa está abierta. No se
+            guarda al cerrar la cuenta.
+          </span>
         </div>
 
         {/* ========================================= */}
@@ -368,6 +421,78 @@ export default function MesaModal({
           cursor: pointer;
           font-size: 18px;
           flex-shrink: 0;
+        }
+
+        /* ============================================================
+           NOTA DE LA MESA (solo frontend, no Supabase)
+        ============================================================ */
+
+        .mesa-modal-nota {
+          flex-shrink: 0;
+          padding: 14px 24px;
+          background: #fffbeb;
+          border-bottom: 1px solid #e5e7eb;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .mesa-modal-nota-label {
+          font-size: 12.5px;
+          font-weight: 700;
+          color: #92400e;
+        }
+
+        .mesa-modal-nota-fila {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .mesa-modal-nota-input {
+          flex: 1;
+          min-width: 0;
+          box-sizing: border-box;
+          padding: 10px 12px;
+          border: 1px solid #fde68a;
+          border-radius: 8px;
+          font-size: 14px;
+          color: #78350f;
+          background: #fff;
+        }
+        .mesa-modal-nota-input::placeholder {
+          color: #b45309;
+          opacity: 0.6;
+        }
+        .mesa-modal-nota-input:focus-visible {
+          outline: 2px solid #2563eb;
+          outline-offset: 1px;
+          border-color: #2563eb;
+        }
+
+        .mesa-modal-nota-borrar {
+          flex-shrink: 0;
+          width: 36px;
+          height: 36px;
+          min-height: 0;
+          border-radius: 8px;
+          border: 1px solid #fde68a;
+          background: #fff;
+          color: #92400e;
+          font-size: 18px;
+          line-height: 1;
+          cursor: pointer;
+        }
+
+        .mesa-modal-nota-ayuda {
+          font-size: 11.5px;
+          color: #b45309;
+        }
+
+        @media (max-width: 768px) {
+          .mesa-modal-nota {
+            padding: 12px 16px;
+          }
         }
 
         /* ============================================================
