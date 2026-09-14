@@ -144,31 +144,59 @@ export default function RestablecerContrasenaPage() {
       return;
     }
 
+    // --------------------------------------------------------
+    // 1) Escuchamos el evento PASSWORD_RECOVERY, que es el que
+    //    Supabase dispara cuando procesa el token del enlace de
+    //    recuperación y crea la sesión temporal.
+    // --------------------------------------------------------
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((evento) => {
+    } = supabase.auth.onAuthStateChange((evento, sesionEvento) => {
       if (!activo) return;
+
+      // Log temporal solicitado para depuración
+      console.log("Evento de Auth:", evento);
+      console.log("Sesión actual:", sesionEvento);
 
       if (evento === "PASSWORD_RECOVERY") {
         setEstado("listo");
       }
     });
 
-    // Respaldo: si ya existe una sesión de recuperación activa
-    // (por ejemplo, si el listener disparó el evento antes de
-    // montar este efecto), lo detectamos igual.
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // --------------------------------------------------------
+    // 2) Respaldo: getSession() por si el evento ya se disparó
+    //    antes de que este efecto se montara. Solo lo aceptamos
+    //    si realmente hay sesión (no asumimos que cualquier
+    //    sesión antigua en el navegador es válida para recovery,
+    //    pero sí la usamos como respaldo porque updateUser()
+    //    exige una sesión activa para funcionar).
+    // --------------------------------------------------------
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (!activo) return;
+
+      console.log("Sesión actual:", session);
+      if (error) {
+        console.error("Error al obtener la sesión:", error.message);
+      }
+
       if (session) {
-        setEstado("listo");
+        setEstado((actual) => (actual === "verificando" ? "listo" : actual));
       }
     });
 
     // Si tras un momento no llegó ni el evento ni una sesión,
-    // asumimos enlace inválido o expirado.
+    // asumimos enlace inválido, expirado o sin sesión.
     const limite = setTimeout(() => {
       if (!activo) return;
-      setEstado((actual) => (actual === "verificando" ? "invalido" : actual));
+      setEstado((actual) => {
+        if (actual === "verificando") {
+          setErrorSesion(
+            "El enlace de recuperación no contiene una sesión válida. Solicita un nuevo enlace."
+          );
+          return "invalido";
+        }
+        return actual;
+      });
     }, 4000);
 
     return () => {
@@ -214,13 +242,41 @@ export default function RestablecerContrasenaPage() {
 
     setEstado("enviando");
 
-    const { error } = await supabase.auth.updateUser({ password });
+    // --------------------------------------------------------
+    // 4) Antes de cambiar la contraseña, verificamos que exista
+    //    una sesión válida. Si no la hay, updateUser() fallará
+    //    igual, pero preferimos dar un mensaje claro y accionable.
+    // --------------------------------------------------------
+    const {
+      data: { session },
+      error: errorSesionActual,
+    } = await supabase.auth.getSession();
+
+    console.log("Sesión actual:", session);
+    if (errorSesionActual) {
+      console.error("Error al obtener la sesión:", errorSesionActual.message);
+    }
+
+    if (!session) {
+      setErrorFormulario(
+        "El enlace de recuperación no contiene una sesión válida. Solicita un nuevo enlace."
+      );
+      setEstado("invalido");
+      return;
+    }
+
+    // --------------------------------------------------------
+    // 5) Cambiar la contraseña únicamente mediante updateUser().
+    // --------------------------------------------------------
+    const { data, error } = await supabase.auth.updateUser({ password });
+
+    console.log("Resultado de updateUser:", data);
 
     if (error) {
-      console.error("Error actualizando contraseña:", error.message);
-      setErrorFormulario(
-        "No fue posible procesar la solicitud. Por favor intenta nuevamente."
-      );
+      // 7) Nunca mostrar solo un error genérico: se muestra el
+      //    mensaje real que devuelve Supabase.
+      console.error("Error al actualizar contraseña:", error);
+      setErrorFormulario(error.message);
       setEstado("listo");
       return;
     }
