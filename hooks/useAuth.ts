@@ -34,6 +34,20 @@ export type UseAuthResult = {
   cerrarSesion: () => Promise<void>;
 
   limpiarError: () => void;
+
+  // ============================================================
+  // RECUPERACIÓN DE CONTRASEÑA
+  //
+  // Envía el correo de recuperación vía Supabase Auth
+  // (resetPasswordForEmail). Por seguridad, SIEMPRE devuelve
+  // exito=true y el mismo mensaje genérico, exista o no una
+  // cuenta asociada al correo — así no se revela si un correo
+  // está registrado en el sistema.
+  // ============================================================
+
+  solicitarRecuperacion: (
+    email: string
+  ) => Promise<{ exito: boolean; mensaje: string }>;
 };
 
 // ============================================================
@@ -260,6 +274,51 @@ export function useAuth(): UseAuthResult {
   }, []);
 
   // ============================================================
+  // SOLICITAR RECUPERACIÓN DE CONTRASEÑA
+  //
+  // Usa exclusivamente Supabase Auth. NO se crea ninguna tabla
+  // ni token propio: Supabase genera y gestiona el enlace de
+  // recuperación de forma oficial.
+  //
+  // El mensaje mostrado al usuario es siempre el mismo genérico,
+  // sin importar si el correo existe o no en el sistema (buena
+  // práctica de seguridad: no revelar cuentas existentes).
+  // ============================================================
+
+  const solicitarRecuperacion = useCallback(
+    async (
+      email: string
+    ): Promise<{ exito: boolean; mensaje: string }> => {
+      const mensajeGenerico =
+        "Si existe una cuenta asociada a este correo electrónico, " +
+        "recibirás un enlace para restablecer tu contraseña.";
+
+      try {
+        await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/restablecer-contrasena`,
+        });
+
+        // Se ignora intencionalmente cualquier error devuelto por
+        // Supabase aquí (por ejemplo "usuario no encontrado") para
+        // no revelar si el correo existe o no.
+        return { exito: true, mensaje: mensajeGenerico };
+      } catch (error) {
+        console.error(
+          "Error solicitando recuperación de contraseña:",
+          error
+        );
+
+        return {
+          exito: false,
+          mensaje:
+            "No fue posible procesar la solicitud. Por favor intenta nuevamente.",
+        };
+      }
+    },
+    []
+  );
+
+  // ============================================================
 
   return {
     usuario,
@@ -270,5 +329,7 @@ export function useAuth(): UseAuthResult {
     iniciarSesion,
     cerrarSesion,
     limpiarError,
+
+    solicitarRecuperacion,
   };
 }

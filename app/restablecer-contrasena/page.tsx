@@ -4,51 +4,36 @@ import {
   FormEvent,
   MouseEvent as ReactMouseEvent,
   useCallback,
+  useEffect,
   useRef,
   useState,
   type CSSProperties,
 } from "react";
+import { useRouter } from "next/navigation";
 
-type Props = {
-  onIniciarSesion: (
-    email: string,
-    password: string
-  ) => Promise<boolean>;
-
-  cargando: boolean;
-  error: string | null;
-  limpiarError: () => void;
-
-  onSolicitarRecuperacion: (
-    email: string
-  ) => Promise<{ exito: boolean; mensaje: string }>;
-};
-
-const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { supabase } from "../../lib/supabase";
 
 const LOGO_IMAGE_URL =
   "https://res.cloudinary.com/dv1gz4eqo/image/upload/v1789083650/LOGO-11_oeaddu.png";
 const BACKGROUND_IMAGE_URL =
   "https://res.cloudinary.com/dv1gz4eqo/image/upload/v1789083980/ChatGPT_Image_10_sept_2026_06_45_54_p.m._azr58f.png";
 
-function IconoCorreo() {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
-      <path
-        d="M3 6.5A1.5 1.5 0 0 1 4.5 5h15A1.5 1.5 0 0 1 21 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5v-11Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <path
-        d="m4 6.5 8 6.2 8-6.2"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
+// ============================================================
+// TIPOS
+// ============================================================
+
+type EstadoPagina =
+  | "verificando"
+  | "listo"
+  | "invalido"
+  | "enviando"
+  | "exito";
+
+type Fortaleza = "vacia" | "debil" | "media" | "segura";
+
+// ============================================================
+// ÍCONOS (mismo set visual que Login)
+// ============================================================
 
 function IconoCandado() {
   return (
@@ -87,86 +72,113 @@ function IconoOjo({ visible }: { visible: boolean }) {
   );
 }
 
-export default function Login({
-  onIniciarSesion,
-  cargando,
-  error,
-  limpiarError,
-  onSolicitarRecuperacion,
-}: Props) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [mostrarPassword, setMostrarPassword] = useState(false);
-  const [recordarme, setRecordarme] = useState(false);
+// ============================================================
+// UTILIDAD: FORTALEZA DE CONTRASEÑA
+//
+// Indicador simple (no son reglas de validación adicionales,
+// solo una guía visual). La única regla que se exige de verdad
+// es el mínimo de 6 caracteres, validado en el submit.
+// ============================================================
+
+function calcularFortaleza(password: string): Fortaleza {
+  if (!password) return "vacia";
+
+  let puntos = 0;
+  if (password.length >= 6) puntos += 1;
+  if (password.length >= 10) puntos += 1;
+  if (/[A-Z]/.test(password) && /[a-z]/.test(password)) puntos += 1;
+  if (/[0-9]/.test(password)) puntos += 1;
+  if (/[^A-Za-z0-9]/.test(password)) puntos += 1;
+
+  if (puntos <= 1) return "debil";
+  if (puntos <= 3) return "media";
+  return "segura";
+}
+
+const ETIQUETA_FORTALEZA: Record<Fortaleza, string> = {
+  vacia: "",
+  debil: "Débil",
+  media: "Media",
+  segura: "Segura",
+};
+
+// ============================================================
+// PÁGINA
+// ============================================================
+
+export default function RestablecerContrasenaPage() {
+  const router = useRouter();
   const escenaRef = useRef<HTMLElement>(null);
 
+  const [estado, setEstado] = useState<EstadoPagina>("verificando");
+  const [errorSesion, setErrorSesion] = useState<string | null>(null);
+
+  const [password, setPassword] = useState("");
+  const [confirmarPassword, setConfirmarPassword] = useState("");
+  const [mostrarPassword, setMostrarPassword] = useState(false);
+  const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
+  const [errorFormulario, setErrorFormulario] = useState<string | null>(null);
+
   // ============================================================
-  // RECUPERACIÓN DE CONTRASEÑA
+  // VERIFICAR SESIÓN DE RECUPERACIÓN
+  //
+  // Supabase, al abrir el enlace del correo, procesa el token
+  // que viene en la URL y crea una sesión temporal de tipo
+  // "recovery" (evento PASSWORD_RECOVERY). Si el enlace es
+  // inválido o expiró, Supabase agrega ?error=... a la URL y
+  // no se crea ninguna sesión.
   // ============================================================
 
-  const [vista, setVista] = useState<"login" | "recuperar">("login");
-  const [emailRecuperacion, setEmailRecuperacion] = useState("");
-  const [errorRecuperacion, setErrorRecuperacion] = useState<string | null>(null);
-  const [estadoRecuperacion, setEstadoRecuperacion] = useState<
-    "inactivo" | "enviando" | "enviado"
-  >("inactivo");
+  useEffect(() => {
+    let activo = true;
 
-  function abrirRecuperacion() {
-    limpiarError();
-    setEmailRecuperacion(email);
-    setErrorRecuperacion(null);
-    setEstadoRecuperacion("inactivo");
-    setVista("recuperar");
-  }
-
-  function volverAlLogin() {
-    setErrorRecuperacion(null);
-    setEstadoRecuperacion("inactivo");
-    setVista("login");
-  }
-
-  async function manejarSubmitRecuperacion(evento: FormEvent<HTMLFormElement>) {
-    evento.preventDefault();
-
-    const correo = emailRecuperacion.trim();
-
-    if (!correo) {
-      setErrorRecuperacion("Por favor ingresa tu correo electrónico.");
-      return;
-    }
-
-    if (!REGEX_EMAIL.test(correo)) {
-      setErrorRecuperacion("Por favor ingresa un correo electrónico válido.");
-      return;
-    }
-
-    setErrorRecuperacion(null);
-    setEstadoRecuperacion("enviando");
-
-    const resultado = await onSolicitarRecuperacion(correo);
-
-    if (!resultado.exito) {
-      setErrorRecuperacion(resultado.mensaje);
-      setEstadoRecuperacion("inactivo");
-      return;
-    }
-
-    setEstadoRecuperacion("enviado");
-  }
-
-  async function manejarSubmit(evento: FormEvent<HTMLFormElement>) {
-    evento.preventDefault();
-
-    limpiarError();
-
-    await onIniciarSesion(
-      email.trim(),
-      password
+    const params = new URLSearchParams(
+      window.location.hash ? window.location.hash.substring(1) : window.location.search
     );
-  }
 
-  // Actualiza las variables CSS directamente sobre el nodo DOM (sin re-render)
-  // para que el brillo del mouse sea fluido y no afecte el rendimiento.
+    if (params.get("error")) {
+      setErrorSesion(
+        params.get("error_description")?.replace(/\+/g, " ") ?? null
+      );
+      setEstado("invalido");
+      return;
+    }
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((evento) => {
+      if (!activo) return;
+
+      if (evento === "PASSWORD_RECOVERY") {
+        setEstado("listo");
+      }
+    });
+
+    // Respaldo: si ya existe una sesión de recuperación activa
+    // (por ejemplo, si el listener disparó el evento antes de
+    // montar este efecto), lo detectamos igual.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!activo) return;
+      if (session) {
+        setEstado("listo");
+      }
+    });
+
+    // Si tras un momento no llegó ni el evento ni una sesión,
+    // asumimos enlace inválido o expirado.
+    const limite = setTimeout(() => {
+      if (!activo) return;
+      setEstado((actual) => (actual === "verificando" ? "invalido" : actual));
+    }, 4000);
+
+    return () => {
+      activo = false;
+      clearTimeout(limite);
+      subscription.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const manejarMovimientoMouse = useCallback((evento: ReactMouseEvent<HTMLElement>) => {
     const nodo = escenaRef.current;
     if (!nodo) return;
@@ -174,6 +186,55 @@ export default function Login({
     nodo.style.setProperty("--mouse-x", `${evento.clientX - rect.left}px`);
     nodo.style.setProperty("--mouse-y", `${evento.clientY - rect.top}px`);
   }, []);
+
+  const fortaleza = calcularFortaleza(password);
+
+  // ============================================================
+  // ENVIAR NUEVA CONTRASEÑA
+  // ============================================================
+
+  async function manejarSubmit(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    setErrorFormulario(null);
+
+    if (!password || !confirmarPassword) {
+      setErrorFormulario("Por favor completa los dos campos.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorFormulario("La contraseña debe tener mínimo 6 caracteres.");
+      return;
+    }
+
+    if (password !== confirmarPassword) {
+      setErrorFormulario("Las contraseñas deben coincidir.");
+      return;
+    }
+
+    setEstado("enviando");
+
+    const { error } = await supabase.auth.updateUser({ password });
+
+    if (error) {
+      console.error("Error actualizando contraseña:", error.message);
+      setErrorFormulario(
+        "No fue posible procesar la solicitud. Por favor intenta nuevamente."
+      );
+      setEstado("listo");
+      return;
+    }
+
+    // Se cierra la sesión de recuperación: el usuario debe
+    // iniciar sesión de nuevo con su nueva contraseña.
+    await supabase.auth.signOut();
+
+    setEstado("exito");
+
+    setTimeout(() => {
+      router.push("/");
+    }, 3000);
+  }
 
   return (
     <main
@@ -191,46 +252,61 @@ export default function Login({
           <img src={LOGO_IMAGE_URL} alt="YOPlay Beer" className="tarjeta__logo" />
         </div>
 
-        {vista === "login" ? (
+        {estado === "verificando" && (
           <>
-            <h1 className="tarjeta__titulo">Bienvenido</h1>
-            <p className="tarjeta__subtitulo">Inicia sesión para continuar</p>
+            <h1 className="tarjeta__titulo">Verificando enlace...</h1>
+            <p className="tarjeta__subtitulo">
+              Estamos confirmando tu solicitud de recuperación.
+            </p>
+          </>
+        )}
 
-            {error && (
+        {estado === "invalido" && (
+          <>
+            <h1 className="tarjeta__titulo">⚠️ Enlace inválido o expirado</h1>
+            <p className="tarjeta__subtitulo">
+              Por favor solicita nuevamente la recuperación de tu contraseña.
+            </p>
+            {errorSesion && <p className="tarjeta__detalle">{errorSesion}</p>}
+            <button type="button" className="boton" onClick={() => router.push("/")}>
+              Solicitar nuevo enlace
+            </button>
+          </>
+        )}
+
+        {estado === "exito" && (
+          <div className="recuperar__exito">
+            <span className="recuperar__exito-icono" aria-hidden="true">
+              ✓
+            </span>
+            <div>
+              <strong>Contraseña actualizada correctamente</strong>
+              <p>Tu contraseña ha sido restablecida.</p>
+              <p className="recuperar__exito-nota">
+                Serás redirigido al inicio de sesión.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {(estado === "listo" || estado === "enviando") && (
+          <>
+            <h1 className="tarjeta__titulo">Restablecer contraseña</h1>
+            <p className="tarjeta__subtitulo">
+              Ingresa tu nueva contraseña para tu cuenta en YOPLAY BEER.
+            </p>
+
+            {errorFormulario && (
               <div role="alert" className="tarjeta__error">
                 <span aria-hidden="true">⚠️</span>
-                <span>{error}</span>
+                <span>{errorFormulario}</span>
               </div>
             )}
 
             <form onSubmit={manejarSubmit} noValidate>
               <div className="campo">
-                <label htmlFor="email" className="campo__label">
-                  Correo electrónico
-                </label>
-                <div className="campo__control">
-                  <span className="campo__icono" aria-hidden="true">
-                    <IconoCorreo />
-                  </span>
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(evento) => {
-                      setEmail(evento.target.value);
-                      limpiarError();
-                    }}
-                    placeholder="correo@ejemplo.com"
-                    required
-                    autoComplete="email"
-                    disabled={cargando}
-                  />
-                </div>
-              </div>
-
-              <div className="campo">
                 <label htmlFor="password" className="campo__label">
-                  Contraseña
+                  Nueva contraseña
                 </label>
                 <div className="campo__control">
                   <span className="campo__icono" aria-hidden="true">
@@ -240,125 +316,71 @@ export default function Login({
                     id="password"
                     type={mostrarPassword ? "text" : "password"}
                     value={password}
-                    onChange={(evento) => {
-                      setPassword(evento.target.value);
-                      limpiarError();
-                    }}
+                    onChange={(evento) => setPassword(evento.target.value)}
                     placeholder="••••••••"
                     required
-                    autoComplete="current-password"
-                    disabled={cargando}
+                    autoComplete="new-password"
+                    disabled={estado === "enviando"}
                   />
                   <button
                     type="button"
                     className="campo__ojo"
                     onClick={() => setMostrarPassword((valor) => !valor)}
-                    disabled={cargando}
+                    disabled={estado === "enviando"}
                     aria-label={mostrarPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                     aria-pressed={mostrarPassword}
                   >
                     <IconoOjo visible={mostrarPassword} />
                   </button>
                 </div>
-              </div>
 
-              <div className="opciones">
-                <label className="opciones__recordarme">
-                  <input
-                    type="checkbox"
-                    checked={recordarme}
-                    onChange={(evento) => setRecordarme(evento.target.checked)}
-                    disabled={cargando}
-                  />
-                  <span>Recordarme</span>
-                </label>
-
-                <button type="button" className="opciones__olvido" onClick={abrirRecuperacion}>
-                  ¿Olvidaste tu contraseña?
-                </button>
-              </div>
-
-              <button type="submit" disabled={cargando} className="boton">
-                {cargando ? "Ingresando..." : "Ingresar"}
-              </button>
-            </form>
-
-            <div className="pie">🔒 Acceso seguro</div>
-          </>
-        ) : (
-          <>
-            <h1 className="tarjeta__titulo">Recuperar contraseña</h1>
-            <p className="tarjeta__subtitulo">
-              Ingresa tu correo electrónico y te enviaremos un enlace para
-              restablecer tu contraseña.
-            </p>
-
-            {estadoRecuperacion === "enviado" ? (
-              <div className="recuperar__exito">
-                <span className="recuperar__exito-icono" aria-hidden="true">
-                  ✓
-                </span>
-                <div>
-                  <strong>Correo enviado</strong>
-                  <p>
-                    Si existe una cuenta asociada a este correo electrónico,
-                    recibirás un enlace para restablecer tu contraseña.
-                  </p>
-                  <p className="recuperar__exito-nota">
-                    Revisa también la carpeta de correo no deseado o spam.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <>
-                {errorRecuperacion && (
-                  <div role="alert" className="tarjeta__error">
-                    <span aria-hidden="true">⚠️</span>
-                    <span>{errorRecuperacion}</span>
+                {fortaleza !== "vacia" && (
+                  <div className={`fortaleza fortaleza--${fortaleza}`}>
+                    <span className="fortaleza__barra" />
+                    <span className="fortaleza__barra" />
+                    <span className="fortaleza__barra" />
+                    <span className="fortaleza__texto">
+                      {ETIQUETA_FORTALEZA[fortaleza]}
+                    </span>
                   </div>
                 )}
+              </div>
 
-                <form onSubmit={manejarSubmitRecuperacion} noValidate>
-                  <div className="campo">
-                    <label htmlFor="email-recuperacion" className="campo__label">
-                      Correo electrónico
-                    </label>
-                    <div className="campo__control">
-                      <span className="campo__icono" aria-hidden="true">
-                        <IconoCorreo />
-                      </span>
-                      <input
-                        id="email-recuperacion"
-                        type="email"
-                        value={emailRecuperacion}
-                        onChange={(evento) => {
-                          setEmailRecuperacion(evento.target.value);
-                          setErrorRecuperacion(null);
-                        }}
-                        placeholder="correo@ejemplo.com"
-                        required
-                        autoComplete="email"
-                        disabled={estadoRecuperacion === "enviando"}
-                      />
-                    </div>
-                  </div>
-
+              <div className="campo">
+                <label htmlFor="confirmar-password" className="campo__label">
+                  Confirmar nueva contraseña
+                </label>
+                <div className="campo__control">
+                  <span className="campo__icono" aria-hidden="true">
+                    <IconoCandado />
+                  </span>
+                  <input
+                    id="confirmar-password"
+                    type={mostrarConfirmar ? "text" : "password"}
+                    value={confirmarPassword}
+                    onChange={(evento) => setConfirmarPassword(evento.target.value)}
+                    placeholder="••••••••"
+                    required
+                    autoComplete="new-password"
+                    disabled={estado === "enviando"}
+                  />
                   <button
-                    type="submit"
-                    disabled={estadoRecuperacion === "enviando"}
-                    className="boton"
+                    type="button"
+                    className="campo__ojo"
+                    onClick={() => setMostrarConfirmar((valor) => !valor)}
+                    disabled={estado === "enviando"}
+                    aria-label={mostrarConfirmar ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    aria-pressed={mostrarConfirmar}
                   >
-                    {estadoRecuperacion === "enviando"
-                      ? "Enviando enlace..."
-                      : "Enviar enlace de recuperación"}
+                    <IconoOjo visible={mostrarConfirmar} />
                   </button>
-                </form>
-              </>
-            )}
+                </div>
+              </div>
 
-            <button type="button" className="boton-secundario" onClick={volverAlLogin}>
-              Volver al inicio de sesión
-            </button>
+              <button type="submit" disabled={estado === "enviando"} className="boton">
+                {estado === "enviando" ? "Actualizando..." : "Restablecer contraseña"}
+              </button>
+            </form>
           </>
         )}
       </div>
@@ -478,12 +500,6 @@ export default function Login({
           transition: filter 0.35s ease, transform 0.35s ease;
         }
 
-        .tarjeta__logo-wrap:hover .tarjeta__logo {
-          transform: scale(1.045);
-          filter: drop-shadow(0 0 6px rgba(57, 255, 20, 0.75)) drop-shadow(0 0 18px rgba(57, 255, 20, 0.55))
-            drop-shadow(0 0 34px rgba(57, 255, 20, 0.38));
-        }
-
         @keyframes respirar {
           0%,
           100% {
@@ -503,7 +519,7 @@ export default function Login({
         .tarjeta__titulo {
           margin: 0 0 6px;
           text-align: center;
-          font-size: 26px;
+          font-size: 24px;
           font-weight: 700;
           letter-spacing: -0.01em;
           color: #fff;
@@ -514,6 +530,13 @@ export default function Login({
           text-align: center;
           font-size: 14px;
           color: rgba(255, 255, 255, 0.55);
+        }
+
+        .tarjeta__detalle {
+          margin: -14px 0 22px;
+          text-align: center;
+          font-size: 12.5px;
+          color: rgba(255, 255, 255, 0.4);
         }
 
         .tarjeta__error {
@@ -608,79 +631,48 @@ export default function Login({
           border-radius: 8px;
         }
 
-        .opciones {
+        .fortaleza {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          flex-wrap: wrap;
-          margin-bottom: 24px;
+          gap: 5px;
+          margin-top: 9px;
         }
 
-        .opciones__recordarme {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 13px;
-          color: rgba(255, 255, 255, 0.6);
-          cursor: pointer;
+        .fortaleza__barra {
+          flex: 1;
+          height: 4px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.12);
+          transition: background 0.25s ease;
         }
 
-        .opciones__recordarme input {
-          width: 16px;
-          height: 16px;
-          accent-color: #39ff14;
-          cursor: pointer;
+        .fortaleza__texto {
+          margin-left: 4px;
+          font-size: 11.5px;
+          font-weight: 600;
+          white-space: nowrap;
         }
 
-        .opciones__olvido {
-          background: none;
-          border: none;
-          padding: 0;
-          font-size: 13px;
-          font-family: inherit;
-          color: rgba(57, 255, 20, 0.85);
-          cursor: pointer;
+        .fortaleza--debil .fortaleza__barra:nth-child(1) {
+          background: #ef4444;
+        }
+        .fortaleza--debil .fortaleza__texto {
+          color: #f87171;
         }
 
-        .opciones__olvido:hover {
+        .fortaleza--media .fortaleza__barra:nth-child(1),
+        .fortaleza--media .fortaleza__barra:nth-child(2) {
+          background: #f59e0b;
+        }
+        .fortaleza--media .fortaleza__texto {
+          color: #fbbf24;
+        }
+
+        .fortaleza--segura .fortaleza__barra {
+          background: #39ff14;
+        }
+        .fortaleza--segura .fortaleza__texto {
           color: #39ff14;
-          text-decoration: underline;
-        }
-
-        .boton {
-          width: 100%;
-          height: 52px;
-          border: none;
-          border-radius: 12px;
-          background: linear-gradient(135deg, #39ff14, #16c784);
-          color: #062012;
-          font-weight: 700;
-          font-size: 15px;
-          cursor: pointer;
-          box-shadow: 0 8px 24px rgba(57, 255, 20, 0.22);
-          transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-        }
-
-        .boton:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 10px 30px rgba(57, 255, 20, 0.35);
-        }
-
-        .boton:active:not(:disabled) {
-          transform: translateY(0);
-        }
-
-        .boton:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-          background: #597a68;
-          box-shadow: none;
-        }
-
-        .boton:focus-visible {
-          outline: 2px solid #fff;
-          outline-offset: 3px;
         }
 
         .recuperar__exito {
@@ -691,7 +683,6 @@ export default function Login({
           border: 1px solid rgba(57, 255, 20, 0.35);
           border-radius: 12px;
           padding: 16px;
-          margin-bottom: 22px;
           color: rgba(255, 255, 255, 0.85);
         }
 
@@ -729,39 +720,39 @@ export default function Login({
           font-size: 12.5px !important;
         }
 
-        .boton-secundario {
+        .boton {
           width: 100%;
-          height: 48px;
-          margin-top: 14px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
+          height: 52px;
+          border: none;
           border-radius: 12px;
-          background: transparent;
-          color: rgba(255, 255, 255, 0.75);
-          font-weight: 600;
-          font-size: 14px;
-          font-family: inherit;
+          background: linear-gradient(135deg, #39ff14, #16c784);
+          color: #062012;
+          font-weight: 700;
+          font-size: 15px;
           cursor: pointer;
-          transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+          box-shadow: 0 8px 24px rgba(57, 255, 20, 0.22);
+          transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
         }
 
-        .boton-secundario:hover {
-          background: rgba(255, 255, 255, 0.06);
-          border-color: rgba(255, 255, 255, 0.25);
-          color: #fff;
+        .boton:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 30px rgba(57, 255, 20, 0.35);
         }
 
-        .boton-secundario:focus-visible {
-          outline: 2px solid rgba(57, 255, 20, 0.7);
-          outline-offset: 2px;
+        .boton:active:not(:disabled) {
+          transform: translateY(0);
         }
 
-        .pie {
-          margin-top: 22px;
-          padding-top: 16px;
-          border-top: 1px solid rgba(255, 255, 255, 0.1);
-          text-align: center;
-          font-size: 12px;
-          color: rgba(255, 255, 255, 0.4);
+        .boton:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          background: #597a68;
+          box-shadow: none;
+        }
+
+        .boton:focus-visible {
+          outline: 2px solid #fff;
+          outline-offset: 3px;
         }
 
         @media (max-width: 480px) {
@@ -774,7 +765,7 @@ export default function Login({
             padding: 28px 22px;
           }
           .tarjeta__titulo {
-            font-size: 22px;
+            font-size: 20px;
           }
         }
       `}</style>

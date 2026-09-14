@@ -47,6 +47,7 @@ export default function Home() {
     iniciarSesion,
     cerrarSesion,
     limpiarError,
+    solicitarRecuperacion,
   } = useAuth();
 
   // ==========================================================
@@ -278,6 +279,7 @@ export default function Home() {
         cargando={cargandoAuth}
         error={errorAuth}
         limpiarError={limpiarError}
+        onSolicitarRecuperacion={solicitarRecuperacion}
       />
     );
   }
