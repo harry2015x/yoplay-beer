@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { Mesa, formatoCOP } from "../../../types/mesas";
 
-type MetodoPago = "efectivo" | "transferencia";
+type MetodoPago = "efectivo" | "transferencia" | "combinado";
 
 type Props = {
   mesa: Mesa;
@@ -36,6 +36,16 @@ export default function CerrarCuentaModal({
   const [metodo, setMetodo] = useState<MetodoPago>("efectivo");
   const [recibidoTexto, setRecibidoTexto] = useState("");
 
+  // ==========================================================
+  // COMBINADO: efectivo + transferencia (reutiliza el mismo
+  // patrón de validación que "efectivo", pero vacío = 0 en vez
+  // de inválido, según lo pedido para este método).
+  // ==========================================================
+
+  const [combinadoEfectivoTexto, setCombinadoEfectivoTexto] = useState("");
+  const [combinadoTransferenciaTexto, setCombinadoTransferenciaTexto] =
+    useState("");
+
   const total = mesa.total;
 
   const recibidoNumero =
@@ -52,17 +62,78 @@ export default function CerrarCuentaModal({
   const esInsuficiente =
     metodo === "efectivo" && recibidoValido && recibidoNumero! < total;
 
+  // ==========================================================
+  // CÁLCULO DEL PAGO COMBINADO
+  //
+  // TOTAL_RECIBIDO = EFECTIVO_RECIBIDO + TRANSFERENCIA_RECIBIDA
+  // Campo vacío = $0 (no es un valor inválido como en "efectivo").
+  // ==========================================================
+
+  const combinadoEfectivoNumero =
+    combinadoEfectivoTexto.trim() === ""
+      ? 0
+      : Number(combinadoEfectivoTexto);
+
+  const combinadoTransferenciaNumero =
+    combinadoTransferenciaTexto.trim() === ""
+      ? 0
+      : Number(combinadoTransferenciaTexto);
+
+  const combinadoTotalRecibido =
+    combinadoEfectivoNumero + combinadoTransferenciaNumero;
+
+  // El cambio solo se calcula cuando TOTAL_RECIBIDO > TOTAL_VENTA.
+  const combinadoCambio =
+    combinadoTotalRecibido > total ? combinadoTotalRecibido - total : 0;
+
+  const combinadoFaltante =
+    combinadoTotalRecibido < total ? total - combinadoTotalRecibido : 0;
+
+  const combinadoEsSuficiente = combinadoTotalRecibido >= total;
+
   const puedeConfirmar =
     !procesando &&
     (metodo === "transferencia" ||
-      (recibidoValido && recibidoNumero! >= total));
+      (metodo === "efectivo" && recibidoValido && recibidoNumero! >= total) ||
+      (metodo === "combinado" && combinadoEsSuficiente));
 
-  function manejarCambioRecibido(valor: string) {
+  function esSoloDigitos(valor: string) {
     // Solo dígitos (sin negativos ni letras) — evita valores inválidos
     // mientras el usuario escribe.
-    if (valor === "" || /^\d*$/.test(valor)) {
+    return valor === "" || /^\d*$/.test(valor);
+  }
+
+  function manejarCambioRecibido(valor: string) {
+    if (esSoloDigitos(valor)) {
       setRecibidoTexto(valor);
     }
+  }
+
+  function manejarCambioCombinadoEfectivo(valor: string) {
+    if (esSoloDigitos(valor)) {
+      setCombinadoEfectivoTexto(valor);
+    }
+  }
+
+  function manejarCambioCombinadoTransferencia(valor: string) {
+    if (esSoloDigitos(valor)) {
+      setCombinadoTransferenciaTexto(valor);
+    }
+  }
+
+  // ==========================================================
+  // CAMBIAR MÉTODO DE PAGO
+  //
+  // Al cambiar de método se limpian los campos que ya no
+  // aplican, para que un valor de un método anterior nunca
+  // afecte el cálculo del método recién seleccionado.
+  // ==========================================================
+
+  function seleccionarMetodo(nuevo: MetodoPago) {
+    setMetodo(nuevo);
+    setRecibidoTexto("");
+    setCombinadoEfectivoTexto("");
+    setCombinadoTransferenciaTexto("");
   }
 
   function manejarConfirmar() {
@@ -122,7 +193,7 @@ export default function CerrarCuentaModal({
                 type="button"
                 role="radio"
                 aria-checked={metodo === "efectivo"}
-                onClick={() => setMetodo("efectivo")}
+                onClick={() => seleccionarMetodo("efectivo")}
                 className={`mesa-btn cerrar-cuenta-metodo-btn${
                   metodo === "efectivo" ? " cerrar-cuenta-metodo-btn--activo" : ""
                 }`}
@@ -135,7 +206,7 @@ export default function CerrarCuentaModal({
                 type="button"
                 role="radio"
                 aria-checked={metodo === "transferencia"}
-                onClick={() => setMetodo("transferencia")}
+                onClick={() => seleccionarMetodo("transferencia")}
                 className={`mesa-btn cerrar-cuenta-metodo-btn${
                   metodo === "transferencia"
                     ? " cerrar-cuenta-metodo-btn--activo"
@@ -144,6 +215,21 @@ export default function CerrarCuentaModal({
               >
                 <span className="cerrar-cuenta-metodo-radio" aria-hidden="true" />
                 🏦 Transferencia
+              </button>
+
+              <button
+                type="button"
+                role="radio"
+                aria-checked={metodo === "combinado"}
+                onClick={() => seleccionarMetodo("combinado")}
+                className={`mesa-btn cerrar-cuenta-metodo-btn${
+                  metodo === "combinado"
+                    ? " cerrar-cuenta-metodo-btn--activo"
+                    : ""
+                }`}
+              >
+                <span className="cerrar-cuenta-metodo-radio" aria-hidden="true" />
+                💵🏦 Combinado
               </button>
             </div>
           </div>
@@ -200,6 +286,97 @@ export default function CerrarCuentaModal({
               {esInsuficiente && (
                 <p role="alert" className="cerrar-cuenta-error">
                   El dinero recibido es insuficiente.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ================================= */}
+          {/* COMBINADO: EFECTIVO + TRANSFERENCIA */}
+          {/* ================================= */}
+
+          {metodo === "combinado" && (
+            <div className="cerrar-cuenta-efectivo cerrar-cuenta-combinado">
+              <div className="cerrar-cuenta-combinado-campo">
+                <label
+                  htmlFor="cerrar-cuenta-combinado-efectivo"
+                  className="cerrar-cuenta-seccion-titulo"
+                >
+                  Pago en efectivo
+                </label>
+
+                <input
+                  id="cerrar-cuenta-combinado-efectivo"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={combinadoEfectivoTexto}
+                  onChange={(evento) =>
+                    manejarCambioCombinadoEfectivo(evento.target.value)
+                  }
+                  placeholder="Ej: 30000"
+                  aria-label="Dinero recibido en efectivo"
+                  className="cerrar-cuenta-input"
+                />
+              </div>
+
+              <div className="cerrar-cuenta-combinado-campo">
+                <label
+                  htmlFor="cerrar-cuenta-combinado-transferencia"
+                  className="cerrar-cuenta-seccion-titulo"
+                >
+                  Pago por transferencia
+                </label>
+
+                <input
+                  id="cerrar-cuenta-combinado-transferencia"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={combinadoTransferenciaTexto}
+                  onChange={(evento) =>
+                    manejarCambioCombinadoTransferencia(evento.target.value)
+                  }
+                  placeholder="Ej: 23000"
+                  aria-label="Valor recibido por transferencia"
+                  className="cerrar-cuenta-input"
+                />
+              </div>
+
+              <div className="cerrar-cuenta-resumen">
+                <div className="cerrar-cuenta-resumen-fila">
+                  <span>Total de la cuenta</span>
+                  <span>{formatoCOP(total)}</span>
+                </div>
+                <div className="cerrar-cuenta-resumen-fila">
+                  <span>Efectivo recibido</span>
+                  <span>{formatoCOP(combinadoEfectivoNumero)}</span>
+                </div>
+                <div className="cerrar-cuenta-resumen-fila">
+                  <span>Transferencia</span>
+                  <span>{formatoCOP(combinadoTransferenciaNumero)}</span>
+                </div>
+                <div className="cerrar-cuenta-resumen-fila">
+                  <span>Total recibido</span>
+                  <span>{formatoCOP(combinadoTotalRecibido)}</span>
+                </div>
+
+                {combinadoEsSuficiente ? (
+                  <div className="cerrar-cuenta-resumen-fila cerrar-cuenta-resumen-cambio">
+                    <span>Cambio</span>
+                    <span>{formatoCOP(combinadoCambio)}</span>
+                  </div>
+                ) : (
+                  <div className="cerrar-cuenta-resumen-fila cerrar-cuenta-resumen-faltante">
+                    <span>Faltante</span>
+                    <span>{formatoCOP(combinadoFaltante)}</span>
+                  </div>
+                )}
+              </div>
+
+              {!combinadoEsSuficiente && (
+                <p role="alert" className="cerrar-cuenta-error">
+                  El pago recibido es insuficiente.
                 </p>
               )}
             </div>
@@ -401,6 +578,23 @@ export default function CerrarCuentaModal({
           padding-top: 4px;
           border-top: 1px dashed #e5e7eb;
           margin-top: 2px;
+        }
+
+        .cerrar-cuenta-resumen-faltante {
+          font-weight: 700;
+          color: #b91c1c;
+          padding-top: 4px;
+          border-top: 1px dashed #e5e7eb;
+          margin-top: 2px;
+        }
+
+        .cerrar-cuenta-combinado {
+          gap: 14px;
+        }
+
+        .cerrar-cuenta-combinado-campo {
+          display: flex;
+          flex-direction: column;
         }
 
         .cerrar-cuenta-error {
