@@ -1,13 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ChangeEvent } from "react";
 
 import type { PerfilUsuario } from "../../../hooks/useAuth";
 import type { Jornada } from "../../../hooks/useJornada";
 
 import type { ResumenVentasUsuario, VentaDetalle } from "../../../types/ventas";
 
+import { obtenerVentasPorFecha } from "../../../hooks/useVentas";
+
 import { generarReporteJornada } from "../../../lib/generarReporteJornada";
+import { generarReporteVentasPDF } from "../../../lib/generarReporteVentasPDF";
 
 import VentasUsuarioModal from "./VentasUsuarioModal";
 
@@ -42,6 +45,30 @@ function formatoCOP(valor: number): string {
 
 function etiquetaVentas(cantidad: number, singular: string, plural: string): string {
   return cantidad === 1 ? singular : plural;
+}
+
+// ============================================================
+// FECHA LOCAL (para el reporte de "otra fecha", independiente
+// de la jornada activa)
+// ============================================================
+
+function fechaLocalDeHoy(): Date {
+  const ahora = new Date();
+  return new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+}
+
+function fechaAValorInput(fecha: Date): string {
+  const yyyy = fecha.getFullYear();
+  const mm = String(fecha.getMonth() + 1).padStart(2, "0");
+  const dd = String(fecha.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function valorInputAFechaLocal(valor: string): Date | null {
+  const partes = valor.split("-").map(Number);
+  const [yyyy, mm, dd] = partes;
+  if (!yyyy || !mm || !dd) return null;
+  return new Date(yyyy, mm - 1, dd);
 }
 
 function inicialesDeNombre(nombre: string): string {
@@ -195,6 +222,63 @@ export default function VentasModule({
   const [generandoPDF, setGenerandoPDF] = useState(false);
   const [mensajePDF, setMensajePDF] = useState<string | null>(null);
 
+  // ==========================================================
+  // DESCARGA POR FECHA (independiente de la jornada activa)
+  // ==========================================================
+  //
+  // Esto NO reemplaza el reporte de la jornada: es una opción
+  // adicional para que el administrador pueda descargar el
+  // reporte de un día anterior (o cualquier fecha), usando la
+  // consulta por rango de fecha que ya existía en useVentas.ts
+  // (consultarVentasEntreFechas / obtenerVentasPorFecha).
+  // ==========================================================
+
+  const [fechaSeleccionada, setFechaSeleccionada] = useState<Date>(() =>
+    fechaLocalDeHoy()
+  );
+  const [generandoPDFFecha, setGenerandoPDFFecha] = useState(false);
+  const [mensajePDFFecha, setMensajePDFFecha] = useState<string | null>(null);
+
+  function manejarCambioFecha(evento: ChangeEvent<HTMLInputElement>) {
+    const nuevaFecha = valorInputAFechaLocal(evento.target.value);
+    if (!nuevaFecha) return;
+    setFechaSeleccionada(nuevaFecha);
+    setMensajePDFFecha(null);
+  }
+
+  async function manejarExportarPDFPorFecha() {
+    if (!esAdministrador) return;
+    if (generandoPDFFecha) return;
+
+    try {
+      setGenerandoPDFFecha(true);
+      setMensajePDFFecha(null);
+
+      const ventasDeLaFecha = await obtenerVentasPorFecha(fechaSeleccionada);
+
+      if (ventasDeLaFecha.length === 0) {
+        setMensajePDFFecha("No existen ventas registradas para esta fecha.");
+        return;
+      }
+
+      const nombreGenerador =
+        (perfilActual as { nombre?: string; nombre_completo?: string }).nombre ??
+        (perfilActual as { nombre?: string; nombre_completo?: string }).nombre_completo ??
+        "Administrador";
+
+      await generarReporteVentasPDF({
+        ventas: ventasDeLaFecha,
+        fecha: fechaSeleccionada,
+        usuario: nombreGenerador,
+      });
+    } catch (error) {
+      console.error(error);
+      setMensajePDFFecha("No fue posible generar el reporte PDF.");
+    } finally {
+      setGenerandoPDFFecha(false);
+    }
+  }
+
   async function manejarExportarPDF() {
     // Solo administradores pueden exportar el reporte de la jornada.
     // Esta comprobación es defensiva: la UI ya oculta el botón
@@ -305,6 +389,130 @@ export default function VentasModule({
             <IconAlertTriangle size={16} />
             No hay una jornada activa. Contacta al administrador para iniciar la jornada.
           </span>
+        </div>
+      )}
+
+      {/* DESCARGAR REPORTE DE OTRA FECHA (independiente de la jornada activa) */}
+      {esAdministrador && (
+        <div className="vm-fecha-card">
+          <div className="vm-fecha-card__texto">
+            <strong>Descargar reporte de otra fecha</strong>
+            <p>Elige un día anterior (o cualquier fecha) para descargar su reporte de ventas.</p>
+          </div>
+
+          <div className="vm-fecha-card__controles">
+            <label className="vm-fecha-card__campo">
+              <span aria-hidden="true">📅</span>
+              <input
+                type="date"
+                value={fechaAValorInput(fechaSeleccionada)}
+                onChange={manejarCambioFecha}
+                max={fechaAValorInput(fechaLocalDeHoy())}
+                aria-label="Fecha del reporte a descargar"
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={manejarExportarPDFPorFecha}
+              disabled={generandoPDFFecha}
+              className="vm-fecha-card__boton"
+            >
+              {generandoPDFFecha ? <IconSpinner size={15} /> : <IconFileDown size={15} />}
+              {generandoPDFFecha ? "Generando..." : "Descargar"}
+            </button>
+          </div>
+
+          {mensajePDFFecha && <p className="vm-fecha-card__mensaje">{mensajePDFFecha}</p>}
+
+          <style jsx>{`
+            .vm-fecha-card {
+              margin-top: 16px;
+              padding: 18px 20px;
+              background: #fff;
+              border-radius: 14px;
+              box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 16px;
+              flex-wrap: wrap;
+            }
+            .vm-fecha-card__texto strong {
+              display: block;
+              font-size: 14.5px;
+              color: #0f172a;
+            }
+            .vm-fecha-card__texto p {
+              margin: 4px 0 0;
+              color: #64748b;
+              font-size: 13px;
+            }
+            .vm-fecha-card__controles {
+              display: flex;
+              gap: 10px;
+              align-items: center;
+              flex-wrap: wrap;
+            }
+            .vm-fecha-card__campo {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              background: #f1f5f9;
+              border-radius: 10px;
+              padding: 10px 12px;
+            }
+            .vm-fecha-card__campo input[type="date"] {
+              border: none;
+              background: transparent;
+              font-size: 13.5px;
+              color: #0f172a;
+              outline: none;
+            }
+            .vm-fecha-card__boton {
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              border: none;
+              border-radius: 10px;
+              padding: 11px 18px;
+              font-weight: 700;
+              font-size: 13.5px;
+              color: #fff;
+              background: #0d1512;
+              cursor: pointer;
+              white-space: nowrap;
+            }
+            .vm-fecha-card__boton:disabled {
+              opacity: 0.6;
+              cursor: not-allowed;
+            }
+            .vm-fecha-card__mensaje {
+              width: 100%;
+              margin: 4px 0 0;
+              color: #b45309;
+              font-size: 13px;
+            }
+
+            @media (max-width: 480px) {
+              .vm-fecha-card {
+                flex-direction: column;
+                align-items: stretch;
+              }
+              .vm-fecha-card__controles {
+                flex-direction: column;
+                align-items: stretch;
+              }
+              .vm-fecha-card__campo,
+              .vm-fecha-card__boton {
+                width: 100%;
+                justify-content: center;
+              }
+              .vm-fecha-card__campo input[type="date"] {
+                width: 100%;
+              }
+            }
+          `}</style>
         </div>
       )}
 
