@@ -770,6 +770,153 @@ export default function MesaModal({
           }
         }
 
+        /* ============================================================
+           MEJORAS EXCLUSIVAS DE ESCRITORIO (≥769px)
+           Solo estética/UX: scrollbars finos, jerarquía, espaciado.
+           No modifica ninguna regla usada por el diseño móvil de arriba.
+        ============================================================ */
+
+        @media (min-width: 769px) {
+          .mesa-modal-dialogo {
+            border-radius: 20px;
+            box-shadow:
+              0 30px 60px -12px rgba(15, 23, 42, 0.28),
+              0 0 0 1px rgba(15, 23, 42, 0.04);
+          }
+
+          .mesa-modal-header {
+            padding: 22px 28px;
+          }
+
+          .mesa-modal-titulo {
+            font-size: 20px;
+            letter-spacing: -0.01em;
+          }
+
+          .mesa-modal-badge {
+            padding: 4px 12px;
+            margin-top: 6px;
+            letter-spacing: 0.02em;
+          }
+
+          .mesa-modal-cerrar {
+            transition: background-color 120ms ease;
+          }
+          .mesa-modal-cerrar:hover {
+            background: #e5e7eb;
+          }
+
+          .mesa-modal-nota {
+            padding: 12px 28px;
+          }
+
+          .mesa-modal-nota-label {
+            letter-spacing: 0.02em;
+          }
+
+          .mesa-modal-contenido {
+            padding: 22px 28px 26px;
+            gap: 0;
+          }
+
+          .mesa-modal-productos {
+            box-sizing: border-box;
+            padding-right: 24px;
+          }
+
+          .mesa-modal-pedido-col {
+            box-sizing: border-box;
+            padding-left: 24px;
+            border-left: 1px solid #eef0f2;
+          }
+
+          .mesa-modal-buscador {
+            padding: 11px 14px;
+            border-radius: 12px;
+            transition: border-color 120ms ease;
+          }
+          .mesa-modal-buscador:hover {
+            border-color: #d1d5db;
+          }
+
+          .mesa-modal-categorias {
+            gap: 6px;
+            padding-bottom: 8px;
+          }
+
+          .mesa-modal-categoria-btn {
+            padding: 7px 14px;
+            transition:
+              background-color 120ms ease,
+              border-color 120ms ease,
+              color 120ms ease;
+          }
+          .mesa-modal-categoria-btn:hover:not(.mesa-modal-categoria-btn--activa) {
+            background: #f3f4f6;
+            border-color: #d1d5db;
+          }
+
+          .mesa-modal-productos-lista {
+            padding-right: 10px;
+          }
+
+          .mesa-modal-producto-fila {
+            padding: 12px 8px;
+            margin: 0 -8px;
+            border-radius: 10px;
+            border-bottom: 1px solid #f1f2f4;
+            transition: background-color 120ms ease;
+          }
+          .mesa-modal-producto-fila:hover {
+            background: #f9fafb;
+          }
+          .mesa-modal-producto-fila:last-child {
+            border-bottom: none;
+          }
+
+          .mesa-modal-producto-imagen {
+            box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.04);
+          }
+
+          /* Scrollbar vertical — lista de productos: fino y discreto */
+          .mesa-modal-productos-lista {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(21, 128, 61, 0.25) transparent;
+          }
+          .mesa-modal-productos-lista::-webkit-scrollbar {
+            width: 6px;
+          }
+          .mesa-modal-productos-lista::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          .mesa-modal-productos-lista::-webkit-scrollbar-thumb {
+            background-color: rgba(21, 128, 61, 0.22);
+            border-radius: 999px;
+          }
+          .mesa-modal-productos-lista:hover::-webkit-scrollbar-thumb {
+            background-color: rgba(21, 128, 61, 0.4);
+          }
+
+          /* Scrollbar horizontal — categorías: mucho más discreta */
+          .mesa-modal-categorias {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(21, 128, 61, 0.2) transparent;
+          }
+          .mesa-modal-categorias::-webkit-scrollbar {
+            height: 5px;
+          }
+          .mesa-modal-categorias::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          .mesa-modal-categorias::-webkit-scrollbar-thumb {
+            background-color: rgba(21, 128, 61, 0.18);
+            border-radius: 999px;
+          }
+          .mesa-modal-categorias:hover::-webkit-scrollbar-thumb {
+            background-color: rgba(21, 128, 61, 0.35);
+          }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .mesas-modal-entrada {
             animation: none !important;
