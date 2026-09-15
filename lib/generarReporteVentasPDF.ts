@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-import type { VentaDetalle } from "../types/ventas";
+import type { VentaDetalle, MetodoPagoVenta } from "../types/ventas";
 
 
 // ============================================================
@@ -39,6 +39,32 @@ export function formatearMoneda(valor: number): string {
       maximumFractionDigits: 0,
     }
   ).format(Number(valor || 0));
+
+}
+
+
+// ============================================================
+// MÉTODO DE PAGO (texto, sin emojis: Helvetica no los soporta)
+// ============================================================
+//
+// venta.metodoPago === null corresponde a ventas registradas
+// antes de que existiera esta funcionalidad. No se asume que
+// fueron en efectivo: se identifican explícitamente como
+// "Sin registrar".
+// ============================================================
+
+function etiquetaMetodoPago(metodo: MetodoPagoVenta | null): string {
+
+  switch (metodo) {
+    case "efectivo":
+      return "Efectivo";
+    case "transferencia":
+      return "Transferencia";
+    case "combinado":
+      return "Combinado";
+    default:
+      return "Sin registrar";
+  }
 
 }
 
@@ -306,6 +332,55 @@ export async function generarReporteVentasPDF(
     0
   );
 
+
+  // ----------------------------------------------------------
+  // TOTALES POR MÉTODO DE PAGO
+  // ----------------------------------------------------------
+  //
+  // - totalEfectivo / totalTransferencia: acumulan montoEfectivo
+  //   y montoTransferencia de TODAS las ventas donde aplica
+  //   (incluidas las combinadas, según su parte correspondiente),
+  //   nunca el dinero físico recibido ni el cambio.
+  // - totalCombinado: valor total (no la parte, el total de la
+  //   venta) de las ventas combinadas; es informativo y NO se sube
+  //   de nuevo a efectivo/transferencia/total vendido.
+  // - totalSinRegistrar: ventas antiguas sin método de pago
+  //   asociado (metodoPago === null); se muestra solo si existen,
+  //   para que el reporte siga cuadrando con el total vendido.
+  //
+  // Cada venta se contabiliza UNA sola vez: una venta combinada
+  // no se cuenta como dos ventas, solo se reparte su valor entre
+  // efectivo y transferencia.
+  // ----------------------------------------------------------
+
+  const totalEfectivo = ventas.reduce((acumulado, venta) => {
+    if (venta.metodoPago === "efectivo" || venta.metodoPago === "combinado") {
+      return acumulado + Number(venta.montoEfectivo || 0);
+    }
+    return acumulado;
+  }, 0);
+
+  const totalTransferencia = ventas.reduce((acumulado, venta) => {
+    if (venta.metodoPago === "transferencia" || venta.metodoPago === "combinado") {
+      return acumulado + Number(venta.montoTransferencia || 0);
+    }
+    return acumulado;
+  }, 0);
+
+  const totalCombinado = ventas.reduce((acumulado, venta) => {
+    if (venta.metodoPago === "combinado") {
+      return acumulado + Number(venta.total || 0);
+    }
+    return acumulado;
+  }, 0);
+
+  const totalSinRegistrar = ventas.reduce((acumulado, venta) => {
+    if (venta.metodoPago === null) {
+      return acumulado + Number(venta.total || 0);
+    }
+    return acumulado;
+  }, 0);
+
   const separacionTarjetas = 8;
   const anchoTarjeta =
     (anchoPagina - margen * 2 - separacionTarjetas * 2) / 3;
@@ -368,7 +443,10 @@ export async function generarReporteVentasPDF(
 
   ventas.forEach((venta, indice) => {
 
-    const espacioEstimado = 24 + venta.productos.length * 7;
+    const espacioEstimado =
+      24 +
+      venta.productos.length * 7 +
+      (venta.metodoPago === "combinado" ? 12 : 0);
 
     if (cursorY + espacioEstimado > altoPagina - 24) {
       doc.addPage();
@@ -385,12 +463,13 @@ export async function generarReporteVentasPDF(
     const horaVenta = formatearHora(venta.closedAt ?? venta.createdAt);
     const mesaTexto =
       venta.mesaNumero != null ? `Mesa ${venta.mesaNumero}` : "-";
+    const metodoTexto = etiquetaMetodoPago(venta.metodoPago);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(110, 110, 110);
     doc.text(
-      `Hora: ${horaVenta}   ·   Usuario: ${venta.usuarioNombre}   ·   ${mesaTexto}`,
+      `Hora: ${horaVenta}   ·   Usuario: ${venta.usuarioNombre}   ·   ${mesaTexto}   ·   ${metodoTexto}`,
       anchoPagina - margen,
       cursorY,
       { align: "right" }
@@ -449,7 +528,33 @@ export async function generarReporteVentasPDF(
       { align: "right" }
     );
 
-    cursorY += 9;
+    cursorY += 6;
+
+    if (venta.metodoPago === "combinado") {
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(90, 90, 90);
+      doc.text("Desglose del pago:", margen, cursorY);
+
+      cursorY += 4.5;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(110, 110, 110);
+      doc.text(
+        `Efectivo: ${formatearMoneda(venta.montoEfectivo ?? 0)}   ·   Transferencia: ${formatearMoneda(venta.montoTransferencia ?? 0)}`,
+        margen,
+        cursorY
+      );
+
+      cursorY += 8;
+
+    } else {
+
+      cursorY += 3;
+
+    }
 
   });
 
@@ -482,6 +587,87 @@ export async function generarReporteVentasPDF(
     cursorY + 19,
     { align: "right" }
   );
+
+  cursorY += 26;
+
+
+  // ----------------------------------------------------------
+  // RESUMEN POR MÉTODO DE PAGO
+  // ----------------------------------------------------------
+
+  const filasResumenMetodo: Array<[string, number]> = [
+    ["EFECTIVO", totalEfectivo],
+    ["TRANSFERENCIA", totalTransferencia],
+    ["COMBINADO (valor total de ventas combinadas)", totalCombinado],
+  ];
+
+  if (totalSinRegistrar > 0) {
+    filasResumenMetodo.push(["SIN REGISTRAR", totalSinRegistrar]);
+  }
+
+  const altoResumenMetodo = 16 + (filasResumenMetodo.length + 1) * 7 + 6;
+
+  if (cursorY + altoResumenMetodo + 10 > altoPagina - 24) {
+    doc.addPage();
+    cursorY = margen;
+  } else {
+    cursorY += 10;
+  }
+
+  doc.setFillColor(...COLOR_GRIS_CLARO);
+  doc.roundedRect(margen, cursorY, anchoPagina - margen * 2, altoResumenMetodo, 2, 2, "F");
+
+  let cursorYResumen = cursorY + 9;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.setTextColor(...COLOR_NEGRO);
+  doc.text("RESUMEN POR MÉTODO DE PAGO", margen + 6, cursorYResumen);
+
+  cursorYResumen += 8;
+
+  filasResumenMetodo.forEach(([etiqueta, valor]) => {
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(80, 80, 80);
+    doc.text(etiqueta, margen + 6, cursorYResumen);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...COLOR_VERDE_OSCURO);
+    doc.text(
+      formatearMoneda(valor),
+      anchoPagina - margen - 6,
+      cursorYResumen,
+      { align: "right" }
+    );
+
+    cursorYResumen += 7;
+
+  });
+
+  doc.setDrawColor(...COLOR_BLANCO);
+  doc.setLineWidth(0.4);
+  doc.line(margen + 6, cursorYResumen - 2.5, anchoPagina - margen - 6, cursorYResumen - 2.5);
+
+  cursorYResumen += 4;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.setTextColor(...COLOR_NEGRO);
+  doc.text("TOTAL VENDIDO", margen + 6, cursorYResumen);
+
+  doc.setFontSize(11);
+  doc.setTextColor(...COLOR_VERDE_OSCURO);
+  doc.text(
+    formatearMoneda(totalGeneral),
+    anchoPagina - margen - 6,
+    cursorYResumen,
+    { align: "right" }
+  );
+
+  cursorY += altoResumenMetodo;
 
 
   // ----------------------------------------------------------
