@@ -7,6 +7,9 @@ import { supabase } from "../lib/supabase";
 import type {
   PeriodoReporte,
   ResumenReporte,
+  ResumenMetodoPago,
+  ResumenPagosCombinados,
+  ResumenCanalesPago,
   ProductoMasVendido,
   VentasPorUsuarioReporte,
   VentaHistorial,
@@ -14,7 +17,17 @@ import type {
   UseReportesResult,
 } from "../types/reportes";
 
-import type { ProductoVenta } from "../types/ventas";
+import type { ProductoVenta, MetodoPagoVenta } from "../types/ventas";
+
+// ============================================================
+// ORDEN FIJO DE MÉTODOS DE PAGO PARA EL RESUMEN
+// ============================================================
+
+const METODOS_PAGO_ORDEN: MetodoPagoVenta[] = [
+  "efectivo",
+  "transferencia",
+  "combinado",
+];
 
 // ============================================================
 // ZONA HORARIA: AMÉRICA/BOGOTÁ (UTC-5, sin horario de verano)
@@ -203,6 +216,9 @@ export function useReportes(): UseReportesResult {
           estado,
           created_at,
           closed_at,
+          metodo_pago,
+          monto_efectivo,
+          monto_transferencia,
 
           mesas (
             numero
@@ -286,6 +302,15 @@ export function useReportes(): UseReportesResult {
           estado: venta.estado,
           createdAt: venta.created_at,
           closedAt: venta.closed_at,
+          metodoPago: venta.metodo_pago ?? null,
+          montoEfectivo:
+            venta.monto_efectivo != null
+              ? Number(venta.monto_efectivo)
+              : null,
+          montoTransferencia:
+            venta.monto_transferencia != null
+              ? Number(venta.monto_transferencia)
+              : null,
           mesaNumero: venta.mesas?.numero ?? null,
           usuarioNombre: venta.profiles?.nombre ?? "Ventas sin usuario",
           productos: productosPorVenta.get(venta.id) ?? [],
@@ -322,6 +347,87 @@ export function useReportes(): UseReportesResult {
       cantidadVentas > 0 ? totalVendido / cantidadVentas : 0;
 
     return { totalVendido, cantidadVentas, productosVendidos, promedioPorVenta };
+  }, [historialVentas]);
+
+  // ==========================================================
+  // RESUMEN POR MÉTODO DE PAGO
+  //
+  // Ventas con metodoPago === null son ventas registradas antes
+  // de esta funcionalidad: no aparecen en ningún método (no
+  // sabemos cómo se pagaron), pero sí siguen contando en
+  // "resumen.totalVendido" de arriba.
+  // ==========================================================
+
+  const resumenMetodosPago = useMemo<ResumenMetodoPago[]>(() => {
+    const mapa = new Map<MetodoPagoVenta, ResumenMetodoPago>();
+
+    METODOS_PAGO_ORDEN.forEach((metodo) => {
+      mapa.set(metodo, { metodo, cantidadVentas: 0, totalVendido: 0 });
+    });
+
+    historialVentas.forEach((venta) => {
+      if (!venta.metodoPago) return;
+
+      const actual = mapa.get(venta.metodoPago);
+      if (!actual) return;
+
+      actual.cantidadVentas += 1;
+      actual.totalVendido += venta.total;
+    });
+
+    return METODOS_PAGO_ORDEN.map((metodo) => mapa.get(metodo)!);
+  }, [historialVentas]);
+
+  // ==========================================================
+  // DESGLOSE DE LOS PAGOS "COMBINADO"
+  // ==========================================================
+
+  const resumenCombinados = useMemo<ResumenPagosCombinados>(() => {
+    let cantidadVentas = 0;
+    let totalEfectivo = 0;
+    let totalTransferencia = 0;
+
+    historialVentas.forEach((venta) => {
+      if (venta.metodoPago !== "combinado") return;
+
+      cantidadVentas += 1;
+      totalEfectivo += venta.montoEfectivo ?? 0;
+      totalTransferencia += venta.montoTransferencia ?? 0;
+    });
+
+    return {
+      cantidadVentas,
+      totalEfectivo,
+      totalTransferencia,
+      totalVendido: totalEfectivo + totalTransferencia,
+    };
+  }, [historialVentas]);
+
+  // ==========================================================
+  // RESUMEN GENERAL DE DINERO POR CANAL (TODOS LOS MÉTODOS)
+  //
+  // El dinero recibido de más y el cambio NUNCA entran aquí:
+  // montoEfectivo/montoTransferencia de cada venta ya vienen
+  // netos desde CerrarCuentaModal (ver useMesas.ts/cerrarMesa).
+  // ==========================================================
+
+  const resumenCanales = useMemo<ResumenCanalesPago>(() => {
+    let totalEfectivo = 0;
+    let totalTransferencia = 0;
+    let totalVendido = 0;
+
+    historialVentas.forEach((venta) => {
+      totalVendido += venta.total;
+
+      // Venta anterior a la migración: no sabemos cómo se pagó,
+      // así que no se contabiliza en ningún canal.
+      if (venta.metodoPago === null) return;
+
+      totalEfectivo += venta.montoEfectivo ?? 0;
+      totalTransferencia += venta.montoTransferencia ?? 0;
+    });
+
+    return { totalEfectivo, totalTransferencia, totalVendido };
   }, [historialVentas]);
 
   // ==========================================================
@@ -451,6 +557,9 @@ export function useReportes(): UseReportesResult {
     fechaInicio,
     fechaFin,
     resumen,
+    resumenMetodosPago,
+    resumenCombinados,
+    resumenCanales,
     productosMasVendidos,
     ventasPorUsuario,
     historialVentas,

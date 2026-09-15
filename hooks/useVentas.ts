@@ -130,6 +130,13 @@ async function transformarVentasConDetalles(
     estado: venta.estado,
     createdAt: venta.created_at,
     closedAt: venta.closed_at,
+    metodoPago: venta.metodo_pago ?? null,
+    montoEfectivo:
+      venta.monto_efectivo != null ? Number(venta.monto_efectivo) : null,
+    montoTransferencia:
+      venta.monto_transferencia != null
+        ? Number(venta.monto_transferencia)
+        : null,
     mesaNumero: venta.mesas?.numero ?? null,
     usuarioNombre: venta.profiles?.nombre ?? "Ventas sin usuario",
     productos: productosPorVenta.get(venta.id) ?? [],
@@ -165,6 +172,9 @@ export async function consultarVentasEntreFechas(
       estado,
       created_at,
       closed_at,
+      metodo_pago,
+      monto_efectivo,
+      monto_transferencia,
 
       mesas (
         numero
@@ -235,6 +245,9 @@ export async function consultarVentasPorJornada(
       estado,
       created_at,
       closed_at,
+      metodo_pago,
+      monto_efectivo,
+      monto_transferencia,
 
       mesas (
         numero

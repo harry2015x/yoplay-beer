@@ -13,6 +13,8 @@ import {
   totalPedido,
 } from "../types/mesas";
 
+import type { MetodoPagoVenta } from "../types/ventas";
+
 /**
  * Hook principal para administrar:
  * - Mesas
@@ -976,7 +978,20 @@ export function useMesas() {
   // ============================================================
 
   async function cerrarMesa(
-    id: number
+    id: number,
+
+    // ==========================================================
+    // MÉTODO DE PAGO (ya validado/calculado en CerrarCuentaModal)
+    //
+    // montoEfectivo + montoTransferencia SIEMPRE deben sumar
+    // exactamente el total de la mesa — nunca dinero recibido de
+    // más, nunca cambio. Ese cálculo vive en CerrarCuentaModal,
+    // este hook solo persiste lo que ya viene calculado.
+    // ==========================================================
+
+    metodoPago: MetodoPagoVenta,
+    montoEfectivo: number,
+    montoTransferencia: number
   ): Promise<boolean> {
 
     // ==========================================================
@@ -1066,6 +1081,15 @@ export function useMesas() {
 
             estado:
               "cerrada",
+
+            metodo_pago:
+              metodoPago,
+
+            monto_efectivo:
+              montoEfectivo,
+
+            monto_transferencia:
+              montoTransferencia,
           },
         ])
         .select()

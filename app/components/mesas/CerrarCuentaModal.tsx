@@ -3,8 +3,7 @@
 import { useState } from "react";
 
 import { Mesa, formatoCOP } from "../../../types/mesas";
-
-type MetodoPago = "efectivo" | "transferencia" | "combinado";
+import type { MetodoPagoVenta } from "../../../types/ventas";
 
 type Props = {
   mesa: Mesa;
@@ -13,7 +12,11 @@ type Props = {
   procesando: boolean;
 
   /** Se llama solo cuando el pago ya es válido (recibido >= total si es efectivo). */
-  onConfirmar: () => void;
+  onConfirmar: (pago: {
+    metodoPago: MetodoPagoVenta;
+    montoEfectivo: number;
+    montoTransferencia: number;
+  }) => void;
 
   onCancelar: () => void;
 };
@@ -33,7 +36,7 @@ export default function CerrarCuentaModal({
   // el método o el dinero recibido de una venta anterior).
   // ==========================================================
 
-  const [metodo, setMetodo] = useState<MetodoPago>("efectivo");
+  const [metodo, setMetodo] = useState<MetodoPagoVenta>("efectivo");
   const [recibidoTexto, setRecibidoTexto] = useState("");
 
   // ==========================================================
@@ -129,16 +132,55 @@ export default function CerrarCuentaModal({
   // afecte el cálculo del método recién seleccionado.
   // ==========================================================
 
-  function seleccionarMetodo(nuevo: MetodoPago) {
+  function seleccionarMetodo(nuevo: MetodoPagoVenta) {
     setMetodo(nuevo);
     setRecibidoTexto("");
     setCombinadoEfectivoTexto("");
     setCombinadoTransferenciaTexto("");
   }
 
+  // ==========================================================
+  // DESGLOSE A REGISTRAR EN LA VENTA
+  //
+  // Nunca es el dinero literalmente entregado por el cliente:
+  // - Efectivo puro: todo el total es efectivo.
+  // - Transferencia pura: todo el total es transferencia.
+  // - Combinado: la transferencia es un valor ya pagado/fijo (no
+  //   se puede "devolver" una transferencia), así que se
+  //   contabiliza primero tal cual se recibió (topada al total
+  //   por seguridad); el efectivo cubre el resto — el cambio
+  //   siempre sale de esa porción en efectivo, nunca se cuenta
+  //   como ingreso.
+  // ==========================================================
+
+  function calcularDesglosePago(): {
+    montoEfectivo: number;
+    montoTransferencia: number;
+  } {
+    if (metodo === "efectivo") {
+      return { montoEfectivo: total, montoTransferencia: 0 };
+    }
+
+    if (metodo === "transferencia") {
+      return { montoEfectivo: 0, montoTransferencia: total };
+    }
+
+    const transferenciaNeta = Math.min(
+      combinadoTransferenciaNumero,
+      total
+    );
+    const efectivoNeto = total - transferenciaNeta;
+
+    return {
+      montoEfectivo: efectivoNeto,
+      montoTransferencia: transferenciaNeta,
+    };
+  }
+
   function manejarConfirmar() {
     if (!puedeConfirmar) return;
-    onConfirmar();
+    const { montoEfectivo, montoTransferencia } = calcularDesglosePago();
+    onConfirmar({ metodoPago: metodo, montoEfectivo, montoTransferencia });
   }
 
   return (

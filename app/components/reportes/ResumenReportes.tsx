@@ -61,7 +61,7 @@ export default function ResumenReportes({ resumen, cargando }: Props) {
   );
 }
 
-function TarjetaResumen({
+export function TarjetaResumen({
   icono,
   titulo,
   valor,

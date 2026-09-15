@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import type { VentaHistorial } from "../../../types/reportes";
 import { formatoCOP } from "../../../types/reportes";
+import type { MetodoPagoVenta } from "../../../types/ventas";
 
 import DetalleVentaModal from "./DetalleVentaModal";
 
@@ -12,6 +13,29 @@ type Props = {
   cargando: boolean;
   error: string | null;
 };
+
+type FiltroMetodo = "todos" | MetodoPagoVenta;
+
+const FILTROS_METODO: { valor: FiltroMetodo; etiqueta: string }[] = [
+  { valor: "todos", etiqueta: "Todos" },
+  { valor: "efectivo", etiqueta: "💵 Efectivo" },
+  { valor: "transferencia", etiqueta: "🏦 Transferencia" },
+  { valor: "combinado", etiqueta: "🔄 Combinado" },
+];
+
+function iconoMetodo(metodo: MetodoPagoVenta | null): string {
+  if (metodo === "efectivo") return "💵";
+  if (metodo === "transferencia") return "🏦";
+  if (metodo === "combinado") return "🔄";
+  return "—";
+}
+
+function etiquetaMetodo(metodo: MetodoPagoVenta | null): string {
+  if (metodo === "efectivo") return "Efectivo";
+  if (metodo === "transferencia") return "Transferencia";
+  if (metodo === "combinado") return "Combinado";
+  return "Sin registrar";
+}
 
 function formatoFechaBogota(fechaISO: string | null): string {
   if (!fechaISO) return "-";
@@ -41,6 +65,18 @@ export default function HistorialVentas({ ventas, cargando, error }: Props) {
   const [ventaSeleccionada, setVentaSeleccionada] =
     useState<VentaHistorial | null>(null);
 
+  // ==========================================================
+  // FILTRO POR MÉTODO DE PAGO (solo en memoria, sobre los datos
+  // ya cargados por useReportes — no dispara una nueva consulta)
+  // ==========================================================
+
+  const [filtroMetodo, setFiltroMetodo] = useState<FiltroMetodo>("todos");
+
+  const ventasFiltradas =
+    filtroMetodo === "todos"
+      ? ventas
+      : ventas.filter((venta) => venta.metodoPago === filtroMetodo);
+
   return (
     <section className="rp-panel">
       <div className="rp-panel-header">
@@ -53,6 +89,25 @@ export default function HistorialVentas({ ventas, cargando, error }: Props) {
 
       {cargando && <div className="rp-loading">Cargando reportes...</div>}
 
+      {!cargando && !error && ventas.length > 0 && (
+        <div className="rp-metodo-filtros">
+          {FILTROS_METODO.map((filtro) => (
+            <button
+              key={filtro.valor}
+              type="button"
+              onClick={() => setFiltroMetodo(filtro.valor)}
+              className={`rp-metodo-filtro-btn${
+                filtroMetodo === filtro.valor
+                  ? " rp-metodo-filtro-btn--activo"
+                  : ""
+              }`}
+            >
+              {filtro.etiqueta}
+            </button>
+          ))}
+        </div>
+      )}
+
       {!cargando && error && (
         <div className="rp-error">No fue posible cargar los reportes.</div>
       )}
@@ -63,7 +118,13 @@ export default function HistorialVentas({ ventas, cargando, error }: Props) {
         </div>
       )}
 
-      {!cargando && !error && ventas.length > 0 && (
+      {!cargando && !error && ventas.length > 0 && ventasFiltradas.length === 0 && (
+        <div className="rp-empty">
+          <span>No hay ventas con este método de pago en el periodo.</span>
+        </div>
+      )}
+
+      {!cargando && !error && ventasFiltradas.length > 0 && (
         <div className="rp-tabla-wrap">
           <table className="rp-tabla">
             <thead>
@@ -72,12 +133,13 @@ export default function HistorialVentas({ ventas, cargando, error }: Props) {
                 <th>Hora</th>
                 <th>Usuario</th>
                 <th>Mesa</th>
+                <th>Método</th>
                 <th className="rp-col-total">Total</th>
                 <th aria-hidden="true"></th>
               </tr>
             </thead>
             <tbody>
-              {ventas.map((venta) => {
+              {ventasFiltradas.map((venta) => {
                 const referencia = venta.closedAt ?? venta.createdAt;
                 return (
                   <tr key={venta.id}>
@@ -85,6 +147,12 @@ export default function HistorialVentas({ ventas, cargando, error }: Props) {
                     <td>{formatoHoraBogota(referencia)}</td>
                     <td>{venta.usuarioNombre}</td>
                     <td>Mesa {venta.mesaNumero ?? "-"}</td>
+                    <td>
+                      <span className="rp-metodo-badge">
+                        {iconoMetodo(venta.metodoPago)}{" "}
+                        {etiquetaMetodo(venta.metodoPago)}
+                      </span>
+                    </td>
                     <td className="rp-col-total">{formatoCOP(venta.total)}</td>
                     <td>
                       <button
@@ -135,6 +203,40 @@ export default function HistorialVentas({ ventas, cargando, error }: Props) {
           text-align: center;
           color: #6b7280;
           font-size: 13.5px;
+        }
+        .rp-metodo-filtros {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+        .rp-metodo-filtro-btn {
+          padding: 8px 14px;
+          border: 1px solid #e4e7eb;
+          border-radius: 999px;
+          background: #fff;
+          color: #1f2430;
+          font-size: 12.5px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.15s ease, border-color 0.15s ease,
+            color 0.15s ease;
+        }
+        .rp-metodo-filtro-btn:hover {
+          background: #f6f7f8;
+          border-color: #d7dbe0;
+        }
+        .rp-metodo-filtro-btn--activo {
+          background: #14181c;
+          border-color: #14181c;
+          color: #fff;
+        }
+        .rp-metodo-badge {
+          display: inline-block;
+          white-space: nowrap;
+          font-size: 12.5px;
+          font-weight: 600;
+          color: #374151;
         }
         .rp-error {
           padding: 16px;
@@ -196,6 +298,13 @@ export default function HistorialVentas({ ventas, cargando, error }: Props) {
           .rp-tabla th,
           .rp-tabla td {
             padding: 10px 8px;
+          }
+          .rp-metodo-filtros {
+            gap: 6px;
+          }
+          .rp-metodo-filtro-btn {
+            flex: 1 1 calc(50% - 6px);
+            text-align: center;
           }
         }
       `}</style>

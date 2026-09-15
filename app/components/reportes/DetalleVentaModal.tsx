@@ -4,11 +4,26 @@ import { useEffect } from "react";
 
 import type { VentaHistorial } from "../../../types/reportes";
 import { formatoCOP } from "../../../types/reportes";
+import type { MetodoPagoVenta } from "../../../types/ventas";
 
 type Props = {
   venta: VentaHistorial;
   onCerrar: () => void;
 };
+
+function iconoMetodo(metodo: MetodoPagoVenta | null): string {
+  if (metodo === "efectivo") return "💵";
+  if (metodo === "transferencia") return "🏦";
+  if (metodo === "combinado") return "🔄";
+  return "—";
+}
+
+function etiquetaMetodo(metodo: MetodoPagoVenta | null): string {
+  if (metodo === "efectivo") return "Efectivo";
+  if (metodo === "transferencia") return "Transferencia";
+  if (metodo === "combinado") return "Combinado";
+  return "Sin registrar";
+}
 
 function formatoFechaBogota(fechaISO: string | null): string {
   if (!fechaISO) return "-";
@@ -88,6 +103,12 @@ export default function DetalleVentaModal({ venta, onCerrar }: Props) {
             <span>Mesa</span>
             <strong>Mesa {venta.mesaNumero ?? "-"}</strong>
           </div>
+          <div className="rp-modal-datos-full">
+            <span>Método de pago</span>
+            <strong>
+              {iconoMetodo(venta.metodoPago)} {etiquetaMetodo(venta.metodoPago)}
+            </strong>
+          </div>
         </div>
 
         <div className="rp-modal-productos">
@@ -115,6 +136,20 @@ export default function DetalleVentaModal({ venta, onCerrar }: Props) {
             ))
           )}
         </div>
+
+        {venta.metodoPago === "combinado" && (
+          <div className="rp-modal-combinado">
+            <h4>Desglose del pago combinado</h4>
+            <div className="rp-combinado-linea">
+              <span>💵 Efectivo</span>
+              <strong>{formatoCOP(venta.montoEfectivo ?? 0)}</strong>
+            </div>
+            <div className="rp-combinado-linea">
+              <span>🏦 Transferencia</span>
+              <strong>{formatoCOP(venta.montoTransferencia ?? 0)}</strong>
+            </div>
+          </div>
+        )}
 
         <div className="rp-modal-footer">
           <span>Total</span>
@@ -205,6 +240,31 @@ export default function DetalleVentaModal({ venta, onCerrar }: Props) {
           font-size: 14px;
           color: #14181c;
         }
+        .rp-modal-datos-full {
+          grid-column: 1 / -1;
+        }
+        .rp-modal-combinado {
+          flex-shrink: 0;
+          margin: 0 24px 16px;
+          padding: 14px 16px;
+          background: #f6f7f8;
+          border: 1px solid #e4e7eb;
+          border-radius: 12px;
+        }
+        .rp-modal-combinado h4 {
+          margin: 0 0 8px;
+          font-size: 12px;
+          font-weight: 700;
+          color: #6b7280;
+        }
+        .rp-combinado-linea {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 13.5px;
+          color: #1f2430;
+          padding: 4px 0;
+        }
         .rp-modal-productos {
           flex: 1 1 auto;
           overflow-y: auto;
@@ -285,6 +345,9 @@ export default function DetalleVentaModal({ venta, onCerrar }: Props) {
           }
           .rp-modal-productos {
             padding: 14px 16px 16px;
+          }
+          .rp-modal-combinado {
+            margin: 0 16px 14px;
           }
           .rp-modal-footer {
             padding: 16px;

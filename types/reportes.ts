@@ -3,7 +3,7 @@
 // Tipos compartidos para el módulo de Reportes
 // ============================================================
 
-import type { VentaDetalle } from "./ventas";
+import type { VentaDetalle, MetodoPagoVenta } from "./ventas";
 
 // ============================================================
 // PERIODOS DISPONIBLES
@@ -51,6 +51,42 @@ export type VentasPorUsuarioReporte = {
 };
 
 // ============================================================
+// RESUMEN POR MÉTODO DE PAGO
+// ============================================================
+
+export type ResumenMetodoPago = {
+  metodo: MetodoPagoVenta;
+  cantidadVentas: number;
+  totalVendido: number;
+};
+
+// ============================================================
+// DESGLOSE DE LOS PAGOS "COMBINADO"
+// (cuánto de ese total vino de efectivo vs. de transferencia)
+// ============================================================
+
+export type ResumenPagosCombinados = {
+  cantidadVentas: number;
+  totalEfectivo: number;
+  totalTransferencia: number;
+  totalVendido: number;
+};
+
+// ============================================================
+// RESUMEN GENERAL DE DINERO POR CANAL
+//
+// Suma efectivo + transferencia de TODAS las ventas (sin
+// importar el método), para la comprobación:
+// totalEfectivo + totalTransferencia = totalVendido
+// ============================================================
+
+export type ResumenCanalesPago = {
+  totalEfectivo: number;
+  totalTransferencia: number;
+  totalVendido: number;
+};
+
+// ============================================================
 // VENTA DEL HISTORIAL
 //
 // Reutiliza el tipo VentaDetalle ya definido en types/ventas.ts
@@ -82,6 +118,9 @@ export type UseReportesResult = {
 
   // Datos
   resumen: ResumenReporte;
+  resumenMetodosPago: ResumenMetodoPago[];
+  resumenCombinados: ResumenPagosCombinados;
+  resumenCanales: ResumenCanalesPago;
   productosMasVendidos: ProductoMasVendido[];
   ventasPorUsuario: VentasPorUsuarioReporte[];
   historialVentas: VentaHistorial[];

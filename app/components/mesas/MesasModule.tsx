@@ -11,6 +11,8 @@ import {
   Producto,
 } from "../../../types/mesas";
 
+import type { MetodoPagoVenta } from "../../../types/ventas";
+
 import MesasResumen from "./MesasResumen";
 
 import MesasFiltros, {
@@ -370,7 +372,15 @@ export default function MesasModule({
   // productos) — el dinero recibido nunca lo modifica.
   // ==========================================================
 
-  async function confirmarPago() {
+  async function confirmarPago(pago: {
+
+    metodoPago: MetodoPagoVenta;
+
+    montoEfectivo: number;
+
+    montoTransferencia: number;
+
+  }) {
 
     if (!mesaAConfirmar || procesandoPago) {
 
@@ -382,7 +392,13 @@ export default function MesasModule({
 
     const exito = await cerrarMesa(
 
-      mesaAConfirmar.id
+      mesaAConfirmar.id,
+
+      pago.metodoPago,
+
+      pago.montoEfectivo,
+
+      pago.montoTransferencia
 
     );
 

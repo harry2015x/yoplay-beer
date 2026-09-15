@@ -4,6 +4,7 @@ import { useReportes } from "../../../hooks/useReportes";
 
 import FiltrosReportes from "./FiltrosReportes";
 import ResumenReportes from "./ResumenReportes";
+import ResumenMetodosPago from "./ResumenMetodosPago";
 import GraficoVentas from "./GraficoVentas";
 import ProductosMasVendidos from "./ProductosMasVendidos";
 import VentasPorUsuario from "./VentasPorUsuario";
@@ -15,6 +16,9 @@ export default function ReportesModule() {
     fechaInicio,
     fechaFin,
     resumen,
+    resumenMetodosPago,
+    resumenCombinados,
+    resumenCanales,
     productosMasVendidos,
     ventasPorUsuario,
     historialVentas,
@@ -67,6 +71,13 @@ export default function ReportesModule() {
       />
 
       <ResumenReportes resumen={resumen} cargando={cargando} />
+
+      <ResumenMetodosPago
+        resumenMetodosPago={resumenMetodosPago}
+        resumenCombinados={resumenCombinados}
+        resumenCanales={resumenCanales}
+        cargando={cargando}
+      />
 
       <GraficoVentas datos={datosGrafico} cargando={cargando} />
 
