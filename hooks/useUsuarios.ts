@@ -13,6 +13,17 @@ import type {
 } from "../types/usuarios";
 
 // ============================================================
+// RESPUESTA DEL ENDPOINT DELETE
+// ============================================================
+// Definido localmente (y no en types/usuarios.ts) porque la
+// respuesta de eliminar no incluye un usuario, a diferencia de
+// UsuarioApiRespuesta que usan crear/editar.
+
+type UsuarioEliminarRespuesta =
+  | { ok: true }
+  | { ok: false; mensaje: string };
+
+// ============================================================
 // TIPO DE RESULTADO DEL HOOK
 // ============================================================
 
@@ -28,6 +39,7 @@ export type UseUsuariosResult = {
   crearUsuario: (datos: NuevoUsuarioInput) => Promise<boolean>;
   editarUsuario: (datos: EdicionUsuarioInput) => Promise<boolean>;
   cambiarEstadoUsuario: (id: string, activo: boolean) => Promise<boolean>;
+  eliminarUsuario: (id: string) => Promise<boolean>;
   cerrarNotificacion: () => void;
 };
 
@@ -271,6 +283,76 @@ export function useUsuarios(): UseUsuariosResult {
   );
 
   // ============================================================
+  // ELIMINAR USUARIO
+  // ============================================================
+
+  const eliminarUsuario = useCallback(
+    async (id: string): Promise<boolean> => {
+      setGuardando(true);
+
+      const token = await obtenerTokenSesion();
+
+      if (!token) {
+        mostrarNotificacion(
+          "error",
+          "Tu sesión expiró. Vuelve a iniciar sesión."
+        );
+
+        setGuardando(false);
+
+        return false;
+      }
+
+      try {
+        const respuesta = await fetch(
+          `/api/usuarios?id=${encodeURIComponent(id)}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const resultado =
+          (await respuesta.json()) as UsuarioEliminarRespuesta;
+
+        if (!respuesta.ok || !resultado.ok) {
+          const mensaje = !resultado.ok
+            ? resultado.mensaje
+            : "No fue posible eliminar el usuario.";
+
+          mostrarNotificacion("error", mensaje);
+          setGuardando(false);
+
+          return false;
+        }
+
+        setUsuarios((actuales) =>
+          actuales.filter((usuarioActual) => usuarioActual.id !== id)
+        );
+
+        mostrarNotificacion("success", "Usuario eliminado correctamente.");
+        setGuardando(false);
+
+        return true;
+      } catch (excepcion) {
+        console.error("Error eliminando usuario:", excepcion);
+
+        mostrarNotificacion(
+          "error",
+          "No fue posible eliminar el usuario."
+        );
+
+        setGuardando(false);
+
+        return false;
+      }
+    },
+    [obtenerTokenSesion, mostrarNotificacion]
+  );
+
+  // ============================================================
   // RESUMEN DERIVADO
   // ============================================================
 
@@ -299,6 +381,7 @@ export function useUsuarios(): UseUsuariosResult {
     crearUsuario,
     editarUsuario,
     cambiarEstadoUsuario,
+    eliminarUsuario,
     cerrarNotificacion,
   };
 }
