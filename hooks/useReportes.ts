@@ -1,574 +1,387 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { supabase } from "../lib/supabase";
-
+import type { PerfilUsuario } from "./useAuth";
+import type { Notificacion } from "../types/mesas";
 import type {
-  PeriodoReporte,
-  ResumenReporte,
-  ResumenMetodoPago,
-  ResumenPagosCombinados,
-  ResumenCanalesPago,
-  ProductoMasVendido,
-  VentasPorUsuarioReporte,
-  VentaHistorial,
-  DatosGrafico,
-  UseReportesResult,
-} from "../types/reportes";
-
-import type { ProductoVenta, MetodoPagoVenta } from "../types/ventas";
+  EdicionUsuarioInput,
+  NuevoUsuarioInput,
+  ResumenUsuarios,
+  UsuarioApiRespuesta,
+} from "../types/usuarios";
 
 // ============================================================
-// ORDEN FIJO DE MÉTODOS DE PAGO PARA EL RESUMEN
+// RESPUESTA DEL ENDPOINT DELETE
 // ============================================================
+// Definido localmente (y no en types/usuarios.ts) porque la
+// respuesta de eliminar no incluye un usuario, a diferencia de
+// UsuarioApiRespuesta que usan crear/editar.
 
-const METODOS_PAGO_ORDEN: MetodoPagoVenta[] = [
-  "efectivo",
-  "transferencia",
-  "combinado",
-];
-
-// ============================================================
-// ZONA HORARIA: AMÉRICA/BOGOTÁ (UTC-5, sin horario de verano)
-//
-// Colombia no observa horario de verano, así que el offset
-// es siempre -05:00. Esto permite calcular los límites de
-// cada día sin depender de la zona horaria del navegador
-// ni del servidor donde corra la app.
-// ============================================================
-
-const OFFSET_BOGOTA_HORAS = 5;
-
-// Año/mes/día de "hoy" en hora de Bogotá
-function obtenerHoyBogota(): { anio: number; mes: number; dia: number } {
-  const ahoraUTC = new Date();
-  const bogotaMs = ahoraUTC.getTime() - OFFSET_BOGOTA_HORAS * 60 * 60 * 1000;
-  const bogotaWall = new Date(bogotaMs);
-
-  return {
-    anio: bogotaWall.getUTCFullYear(),
-    mes: bogotaWall.getUTCMonth(),
-    dia: bogotaWall.getUTCDate(),
-  };
-}
-
-// 00:00:00.000 de Bogotá para un día dado => 05:00:00.000 UTC del mismo día
-function inicioDiaBogota(anio: number, mes: number, dia: number): Date {
-  return new Date(Date.UTC(anio, mes, dia, OFFSET_BOGOTA_HORAS, 0, 0, 0));
-}
-
-// 23:59:59.999 de Bogotá para un día dado => 04:59:59.999 UTC del día siguiente
-function finDiaBogota(anio: number, mes: number, dia: number): Date {
-  return new Date(
-    Date.UTC(anio, mes, dia + 1, OFFSET_BOGOTA_HORAS - 1, 59, 59, 999)
-  );
-}
-
-// "YYYY-MM-DD" -> componentes numéricos
-function parsearFechaInput(
-  valor: string
-): { anio: number; mes: number; dia: number } | null {
-  const partes = valor.split("-").map(Number);
-  if (partes.length !== 3 || partes.some((n) => Number.isNaN(n))) return null;
-
-  const [anio, mes, dia] = partes;
-  return { anio, mes: mes - 1, dia };
-}
-
-// componentes numéricos -> "YYYY-MM-DD"
-function formatearFechaInput(anio: number, mes: number, dia: number): string {
-  const mm = String(mes + 1).padStart(2, "0");
-  const dd = String(dia).padStart(2, "0");
-  return `${anio}-${mm}-${dd}`;
-}
-
-// Clave de día en Bogotá ("YYYY-MM-DD") a partir de un timestamp ISO
-function claveDiaBogota(fechaISO: string): string {
-  const fecha = new Date(fechaISO);
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Bogota",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(fecha);
-}
-
-// Etiqueta corta de día para el gráfico, ej: "lun 08"
-function etiquetaDiaBogota(fechaISO: string): string {
-  const fecha = new Date(fechaISO);
-  const texto = new Intl.DateTimeFormat("es-CO", {
-    timeZone: "America/Bogota",
-    weekday: "short",
-    day: "2-digit",
-  }).format(fecha);
-  return texto.replace(".", "");
-}
+type UsuarioEliminarRespuesta =
+  | { ok: true }
+  | { ok: false; mensaje: string };
 
 // ============================================================
-// RANGO DE FECHAS SEGÚN EL PERIODO
+// TIPO DE RESULTADO DEL HOOK
 // ============================================================
 
-function calcularRango(
-  periodo: PeriodoReporte,
-  fechaInicioPersonalizada: string,
-  fechaFinPersonalizada: string
-): { desde: Date; hasta: Date } | null {
-  const hoy = obtenerHoyBogota();
+export type UseUsuariosResult = {
+  usuarios: PerfilUsuario[];
+  cargando: boolean;
+  guardando: boolean;
+  error: string | null;
+  notificacion: Notificacion | null;
+  resumen: ResumenUsuarios;
 
-  switch (periodo) {
-    case "hoy":
-      return {
-        desde: inicioDiaBogota(hoy.anio, hoy.mes, hoy.dia),
-        hasta: finDiaBogota(hoy.anio, hoy.mes, hoy.dia),
-      };
-
-    case "ayer":
-      return {
-        desde: inicioDiaBogota(hoy.anio, hoy.mes, hoy.dia - 1),
-        hasta: finDiaBogota(hoy.anio, hoy.mes, hoy.dia - 1),
-      };
-
-    case "semana":
-      return {
-        desde: inicioDiaBogota(hoy.anio, hoy.mes, hoy.dia - 6),
-        hasta: finDiaBogota(hoy.anio, hoy.mes, hoy.dia),
-      };
-
-    case "quincena":
-      return {
-        desde: inicioDiaBogota(hoy.anio, hoy.mes, hoy.dia - 14),
-        hasta: finDiaBogota(hoy.anio, hoy.mes, hoy.dia),
-      };
-
-    case "mes":
-      return {
-        desde: inicioDiaBogota(hoy.anio, hoy.mes, hoy.dia - 29),
-        hasta: finDiaBogota(hoy.anio, hoy.mes, hoy.dia),
-      };
-
-    case "personalizado": {
-      const inicio = parsearFechaInput(fechaInicioPersonalizada);
-      const fin = parsearFechaInput(fechaFinPersonalizada);
-      if (!inicio || !fin) return null;
-
-      return {
-        desde: inicioDiaBogota(inicio.anio, inicio.mes, inicio.dia),
-        hasta: finDiaBogota(fin.anio, fin.mes, fin.dia),
-      };
-    }
-
-    default:
-      return null;
-  }
-}
+  cargarUsuarios: () => Promise<void>;
+  crearUsuario: (datos: NuevoUsuarioInput) => Promise<boolean>;
+  editarUsuario: (datos: EdicionUsuarioInput) => Promise<boolean>;
+  cambiarEstadoUsuario: (id: string, activo: boolean) => Promise<boolean>;
+  eliminarUsuario: (id: string) => Promise<boolean>;
+  cerrarNotificacion: () => void;
+};
 
 // ============================================================
-// HOOK DE REPORTES
+// HOOK
 // ============================================================
 
-export function useReportes(): UseReportesResult {
-  const hoyBogota = obtenerHoyBogota();
-  const hoyTexto = formatearFechaInput(
-    hoyBogota.anio,
-    hoyBogota.mes,
-    hoyBogota.dia
-  );
-
-  const [periodo, setPeriodo] = useState<PeriodoReporte>("hoy");
-  const [fechaInicio, setFechaInicio] = useState<string>(hoyTexto);
-  const [fechaFin, setFechaFin] = useState<string>(hoyTexto);
-
-  const [historialVentas, setHistorialVentas] = useState<VentaHistorial[]>([]);
+export function useUsuarios(): UseUsuariosResult {
+  const [usuarios, setUsuarios] = useState<PerfilUsuario[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // ==========================================================
-  // CARGAR DATOS DEL PERIODO SELECCIONADO
-  // ==========================================================
-
-  const cargarReportes = useCallback(async () => {
-    const rango = calcularRango(periodo, fechaInicio, fechaFin);
-
-    if (!rango) {
-      setError("El rango de fechas seleccionado no es válido.");
-      setHistorialVentas([]);
-      setCargando(false);
-      return;
-    }
-
-    try {
-      setCargando(true);
-      setError(null);
-
-      // ======================================================
-      // CONSULTAR VENTAS CERRADAS DEL PERIODO
-      // ======================================================
-
-      const { data: ventasData, error: ventasError } = await supabase
-        .from("ventas")
-        .select(
-          `
-          id,
-          mesa_id,
-          usuario_id,
-          total,
-          estado,
-          created_at,
-          closed_at,
-          metodo_pago,
-          monto_efectivo,
-          monto_transferencia,
-
-          mesas (
-            numero
-          ),
-
-          profiles (
-            nombre
-          )
-        `
-        )
-        .eq("estado", "cerrada")
-        .gte("created_at", rango.desde.toISOString())
-        .lte("created_at", rango.hasta.toISOString())
-        .order("created_at", { ascending: false });
-
-      if (ventasError) {
-        console.error("Error cargando reportes (ventas):", ventasError);
-        setError("No fue posible cargar los reportes.");
-        setHistorialVentas([]);
-        return;
-      }
-
-      if (!ventasData || ventasData.length === 0) {
-        setHistorialVentas([]);
-        return;
-      }
-
-      // ======================================================
-      // CONSULTAR PRODUCTOS DE ESAS VENTAS
-      // ======================================================
-
-      const ventasIds = ventasData.map((venta: any) => venta.id);
-
-      const { data: detallesData, error: detallesError } = await supabase
-        .from("venta_detalles")
-        .select(
-          `
-          id,
-          venta_id,
-          producto_id,
-          nombre_producto,
-          precio,
-          cantidad,
-          subtotal
-        `
-        )
-        .in("venta_id", ventasIds);
-
-      if (detallesError) {
-        console.error("Error cargando reportes (detalles):", detallesError);
-        setError("No fue posible cargar los productos de las ventas.");
-      }
-
-      const productosPorVenta = new Map<number, ProductoVenta[]>();
-
-      (detallesData || []).forEach((detalle: any) => {
-        const producto: ProductoVenta = {
-          id: detalle.id,
-          productoId: detalle.producto_id ?? null,
-          nombreProducto: detalle.nombre_producto ?? "Producto sin nombre",
-          precio: Number(detalle.precio || 0),
-          cantidad: Number(detalle.cantidad || 0),
-          subtotal: Number(detalle.subtotal || 0),
-        };
-
-        const actuales = productosPorVenta.get(detalle.venta_id) ?? [];
-        actuales.push(producto);
-        productosPorVenta.set(detalle.venta_id, actuales);
-      });
-
-      // ======================================================
-      // TRANSFORMAR VENTAS
-      // ======================================================
-
-      const ventasTransformadas: VentaHistorial[] = ventasData.map(
-        (venta: any) => ({
-          id: venta.id,
-          mesaId: venta.mesa_id,
-          usuarioId: venta.usuario_id,
-          total: Number(venta.total || 0),
-          estado: venta.estado,
-          createdAt: venta.created_at,
-          closedAt: venta.closed_at,
-          metodoPago: venta.metodo_pago ?? null,
-          montoEfectivo:
-            venta.monto_efectivo != null
-              ? Number(venta.monto_efectivo)
-              : null,
-          montoTransferencia:
-            venta.monto_transferencia != null
-              ? Number(venta.monto_transferencia)
-              : null,
-          mesaNumero: venta.mesas?.numero ?? null,
-          usuarioNombre: venta.profiles?.nombre ?? "Ventas sin usuario",
-          productos: productosPorVenta.get(venta.id) ?? [],
-        })
-      );
-
-      setHistorialVentas(ventasTransformadas);
-    } catch (err) {
-      console.error("Error inesperado cargando reportes:", err);
-      setError("Ocurrió un error al cargar los reportes.");
-      setHistorialVentas([]);
-    } finally {
-      setCargando(false);
-    }
-  }, [periodo, fechaInicio, fechaFin]);
-
-  useEffect(() => {
-    cargarReportes();
-  }, [cargarReportes]);
-
-  // ==========================================================
-  // RESUMEN GENERAL
-  // ==========================================================
-
-  const resumen = useMemo<ResumenReporte>(() => {
-    const totalVendido = historialVentas.reduce((acc, v) => acc + v.total, 0);
-    const cantidadVentas = historialVentas.length;
-
-    const productosVendidos = historialVentas.reduce((acc, venta) => {
-      return acc + venta.productos.reduce((sub, p) => sub + p.cantidad, 0);
-    }, 0);
-
-    const promedioPorVenta =
-      cantidadVentas > 0 ? totalVendido / cantidadVentas : 0;
-
-    return { totalVendido, cantidadVentas, productosVendidos, promedioPorVenta };
-  }, [historialVentas]);
-
-  // ==========================================================
-  // RESUMEN POR MÉTODO DE PAGO
-  //
-  // Ventas con metodoPago === null son ventas registradas antes
-  // de esta funcionalidad: no aparecen en ningún método (no
-  // sabemos cómo se pagaron), pero sí siguen contando en
-  // "resumen.totalVendido" de arriba.
-  // ==========================================================
-
-  const resumenMetodosPago = useMemo<ResumenMetodoPago[]>(() => {
-    const mapa = new Map<MetodoPagoVenta, ResumenMetodoPago>();
-
-    METODOS_PAGO_ORDEN.forEach((metodo) => {
-      mapa.set(metodo, { metodo, cantidadVentas: 0, totalVendido: 0 });
-    });
-
-    historialVentas.forEach((venta) => {
-      if (!venta.metodoPago) return;
-
-      const actual = mapa.get(venta.metodoPago);
-      if (!actual) return;
-
-      actual.cantidadVentas += 1;
-      actual.totalVendido += venta.total;
-    });
-
-    return METODOS_PAGO_ORDEN.map((metodo) => mapa.get(metodo)!);
-  }, [historialVentas]);
-
-  // ==========================================================
-  // DESGLOSE DE LOS PAGOS "COMBINADO"
-  // ==========================================================
-
-  const resumenCombinados = useMemo<ResumenPagosCombinados>(() => {
-    let cantidadVentas = 0;
-    let totalEfectivo = 0;
-    let totalTransferencia = 0;
-
-    historialVentas.forEach((venta) => {
-      if (venta.metodoPago !== "combinado") return;
-
-      cantidadVentas += 1;
-      totalEfectivo += venta.montoEfectivo ?? 0;
-      totalTransferencia += venta.montoTransferencia ?? 0;
-    });
-
-    return {
-      cantidadVentas,
-      totalEfectivo,
-      totalTransferencia,
-      totalVendido: totalEfectivo + totalTransferencia,
-    };
-  }, [historialVentas]);
-
-  // ==========================================================
-  // RESUMEN GENERAL DE DINERO POR CANAL (TODOS LOS MÉTODOS)
-  //
-  // El dinero recibido de más y el cambio NUNCA entran aquí:
-  // montoEfectivo/montoTransferencia de cada venta ya vienen
-  // netos desde CerrarCuentaModal (ver useMesas.ts/cerrarMesa).
-  // ==========================================================
-
-  const resumenCanales = useMemo<ResumenCanalesPago>(() => {
-    let totalEfectivo = 0;
-    let totalTransferencia = 0;
-    let totalVendido = 0;
-
-    historialVentas.forEach((venta) => {
-      totalVendido += venta.total;
-
-      // Venta anterior a la migración: no sabemos cómo se pagó,
-      // así que no se contabiliza en ningún canal.
-      if (venta.metodoPago === null) return;
-
-      totalEfectivo += venta.montoEfectivo ?? 0;
-      totalTransferencia += venta.montoTransferencia ?? 0;
-    });
-
-    return { totalEfectivo, totalTransferencia, totalVendido };
-  }, [historialVentas]);
-
-  // ==========================================================
-  // PRODUCTOS MÁS VENDIDOS
-  // ==========================================================
-
-  const productosMasVendidos = useMemo<ProductoMasVendido[]>(() => {
-    const mapa = new Map<string, ProductoMasVendido>();
-
-    historialVentas.forEach((venta) => {
-      venta.productos.forEach((producto) => {
-        const clave =
-          producto.productoId != null
-            ? String(producto.productoId)
-            : producto.nombreProducto;
-
-        if (!mapa.has(clave)) {
-          mapa.set(clave, {
-            productoId: producto.productoId,
-            nombreProducto: producto.nombreProducto,
-            cantidadVendida: 0,
-            totalGenerado: 0,
-          });
-        }
-
-        const actual = mapa.get(clave)!;
-        actual.cantidadVendida += producto.cantidad;
-        actual.totalGenerado += producto.subtotal;
-      });
-    });
-
-    return Array.from(mapa.values()).sort(
-      (a, b) => b.cantidadVendida - a.cantidadVendida
-    );
-  }, [historialVentas]);
-
-  // ==========================================================
-  // VENTAS POR USUARIO
-  // ==========================================================
-
-  const ventasPorUsuario = useMemo<VentasPorUsuarioReporte[]>(() => {
-    const mapa = new Map<string, VentasPorUsuarioReporte>();
-
-    historialVentas.forEach((venta) => {
-      const clave = venta.usuarioId ?? "sin-usuario";
-
-      if (!mapa.has(clave)) {
-        mapa.set(clave, {
-          usuarioId: venta.usuarioId,
-          usuarioNombre: venta.usuarioNombre,
-          cantidadVentas: 0,
-          totalVendido: 0,
-        });
-      }
-
-      const actual = mapa.get(clave)!;
-      actual.cantidadVentas += 1;
-      actual.totalVendido += venta.total;
-    });
-
-    return Array.from(mapa.values()).sort(
-      (a, b) => b.totalVendido - a.totalVendido
-    );
-  }, [historialVentas]);
-
-  // ==========================================================
-  // DATOS DEL GRÁFICO (VENTAS POR DÍA, HORA BOGOTÁ)
-  // ==========================================================
-
-  const datosGrafico = useMemo<DatosGrafico>(() => {
-    const mapa = new Map<string, number>();
-
-    historialVentas.forEach((venta) => {
-      const referencia = venta.closedAt ?? venta.createdAt;
-      if (!referencia) return;
-
-      const clave = claveDiaBogota(referencia);
-      mapa.set(clave, (mapa.get(clave) ?? 0) + venta.total);
-    });
-
-    return Array.from(mapa.entries())
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-      .map(([fecha, total]) => ({
-        fecha,
-        etiqueta: etiquetaDiaBogota(`${fecha}T12:00:00-05:00`),
-        total,
-      }));
-  }, [historialVentas]);
-
-  // ==========================================================
-  // CAMBIAR PERIODO
-  // ==========================================================
-
-  const cambiarPeriodo = useCallback(
-    (nuevoPeriodo: PeriodoReporte) => {
-      setPeriodo(nuevoPeriodo);
-
-      if (nuevoPeriodo !== "personalizado") {
-        setFechaInicio(hoyTexto);
-        setFechaFin(hoyTexto);
-      }
-    },
-    [hoyTexto]
-  );
-
-  // ==========================================================
-  // APLICAR RANGO PERSONALIZADO
-  // ==========================================================
-
-  const aplicarRangoPersonalizado = useCallback(
-    (inicio: string, fin: string) => {
-      setPeriodo("personalizado");
-      setFechaInicio(inicio);
-      setFechaFin(fin);
+  const [notificacion, setNotificacion] =
+    useState<Notificacion | null>(null);
+
+  // ============================================================
+  // NOTIFICACIONES
+  // ============================================================
+
+  const mostrarNotificacion = useCallback(
+    (tipo: Notificacion["tipo"], mensaje: string) => {
+      setNotificacion({ tipo, mensaje });
     },
     []
   );
 
-  // ==========================================================
-  // LIMPIAR ERROR
-  // ==========================================================
+  const cerrarNotificacion = useCallback(() => {
+    setNotificacion(null);
+  }, []);
 
-  const limpiarError = useCallback(() => setError(null), []);
+  // ============================================================
+  // CARGAR USUARIOS (lectura directa vía Supabase + RLS)
+  // ============================================================
+
+  const cargarUsuarios = useCallback(async () => {
+    setCargando(true);
+    setError(null);
+
+    const { data, error: errorConsulta } = await supabase
+      .from("profiles")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (errorConsulta) {
+      console.error("Error cargando usuarios:", errorConsulta.message);
+
+      setError("No fue posible cargar la lista de usuarios.");
+      setUsuarios([]);
+      setCargando(false);
+
+      return;
+    }
+
+    setUsuarios((data ?? []) as PerfilUsuario[]);
+    setCargando(false);
+  }, []);
+
+  useEffect(() => {
+    cargarUsuarios();
+  }, [cargarUsuarios]);
+
+  // ============================================================
+  // TOKEN DE SESIÓN (para autorizar la API route)
+  // ============================================================
+
+  const obtenerTokenSesion = useCallback(async (): Promise<
+    string | null
+  > => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    return session?.access_token ?? null;
+  }, []);
+
+  // ============================================================
+  // CREAR USUARIO
+  // ============================================================
+
+  const crearUsuario = useCallback(
+    async (datos: NuevoUsuarioInput): Promise<boolean> => {
+      setGuardando(true);
+
+      const token = await obtenerTokenSesion();
+
+      if (!token) {
+        mostrarNotificacion(
+          "error",
+          "Tu sesión expiró. Vuelve a iniciar sesión."
+        );
+
+        setGuardando(false);
+
+        return false;
+      }
+
+      try {
+        const respuesta = await fetch("/api/usuarios", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(datos),
+        });
+
+        const resultado =
+          (await respuesta.json()) as UsuarioApiRespuesta;
+
+        if (!respuesta.ok || !resultado.ok) {
+          const mensaje = !resultado.ok
+            ? resultado.mensaje
+            : "No fue posible crear el usuario.";
+
+          mostrarNotificacion("error", mensaje);
+          setGuardando(false);
+
+          return false;
+        }
+
+        setUsuarios((actuales) => [
+          resultado.usuario as PerfilUsuario,
+          ...actuales,
+        ]);
+
+        mostrarNotificacion("success", "Usuario creado correctamente.");
+        setGuardando(false);
+
+        return true;
+      } catch (excepcion) {
+        console.error("Error creando usuario:", excepcion);
+
+        mostrarNotificacion("error", "No fue posible crear el usuario.");
+        setGuardando(false);
+
+        return false;
+      }
+    },
+    [obtenerTokenSesion, mostrarNotificacion]
+  );
+
+  // ============================================================
+  // EDITAR USUARIO (nombre / rol / activo)
+  // ============================================================
+
+  const editarUsuario = useCallback(
+    async (datos: EdicionUsuarioInput): Promise<boolean> => {
+      setGuardando(true);
+
+      const token = await obtenerTokenSesion();
+
+      if (!token) {
+        mostrarNotificacion(
+          "error",
+          "Tu sesión expiró. Vuelve a iniciar sesión."
+        );
+
+        setGuardando(false);
+
+        return false;
+      }
+
+      try {
+        const respuesta = await fetch("/api/usuarios", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(datos),
+        });
+
+        const resultado =
+          (await respuesta.json()) as UsuarioApiRespuesta;
+
+        if (!respuesta.ok || !resultado.ok) {
+          const mensaje = !resultado.ok
+            ? resultado.mensaje
+            : "No fue posible actualizar el usuario.";
+
+          mostrarNotificacion("error", mensaje);
+          setGuardando(false);
+
+          return false;
+        }
+
+        const usuarioActualizado = resultado.usuario as PerfilUsuario;
+
+        setUsuarios((actuales) =>
+          actuales.map((usuarioActual) =>
+            usuarioActual.id === usuarioActualizado.id
+              ? usuarioActualizado
+              : usuarioActual
+          )
+        );
+
+        mostrarNotificacion(
+          "success",
+          "Usuario actualizado correctamente."
+        );
+
+        setGuardando(false);
+
+        return true;
+      } catch (excepcion) {
+        console.error("Error editando usuario:", excepcion);
+
+        mostrarNotificacion(
+          "error",
+          "No fue posible actualizar el usuario."
+        );
+
+        setGuardando(false);
+
+        return false;
+      }
+    },
+    [obtenerTokenSesion, mostrarNotificacion]
+  );
+
+  // ============================================================
+  // ACTIVAR / DESACTIVAR (usa el mismo endpoint de edición)
+  // ============================================================
+
+  const cambiarEstadoUsuario = useCallback(
+    async (id: string, activo: boolean): Promise<boolean> => {
+      const exito = await editarUsuario({ id, activo });
+
+      if (exito) {
+        mostrarNotificacion(
+          "success",
+          activo
+            ? "Usuario activado correctamente."
+            : "Usuario desactivado correctamente."
+        );
+      }
+
+      return exito;
+    },
+    [editarUsuario, mostrarNotificacion]
+  );
+
+  // ============================================================
+  // ELIMINAR USUARIO
+  // ============================================================
+
+  const eliminarUsuario = useCallback(
+    async (id: string): Promise<boolean> => {
+      setGuardando(true);
+
+      const token = await obtenerTokenSesion();
+
+      if (!token) {
+        mostrarNotificacion(
+          "error",
+          "Tu sesión expiró. Vuelve a iniciar sesión."
+        );
+
+        setGuardando(false);
+
+        return false;
+      }
+
+      try {
+        const respuesta = await fetch(
+          `/api/usuarios?id=${encodeURIComponent(id)}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const resultado =
+          (await respuesta.json()) as UsuarioEliminarRespuesta;
+
+        if (!respuesta.ok || !resultado.ok) {
+          const mensaje = !resultado.ok
+            ? resultado.mensaje
+            : "No fue posible eliminar el usuario.";
+
+          mostrarNotificacion("error", mensaje);
+          setGuardando(false);
+
+          return false;
+        }
+
+        setUsuarios((actuales) =>
+          actuales.filter((usuarioActual) => usuarioActual.id !== id)
+        );
+
+        mostrarNotificacion("success", "Usuario eliminado correctamente.");
+        setGuardando(false);
+
+        return true;
+      } catch (excepcion) {
+        console.error("Error eliminando usuario:", excepcion);
+
+        mostrarNotificacion(
+          "error",
+          "No fue posible eliminar el usuario."
+        );
+
+        setGuardando(false);
+
+        return false;
+      }
+    },
+    [obtenerTokenSesion, mostrarNotificacion]
+  );
+
+  // ============================================================
+  // RESUMEN DERIVADO
+  // ============================================================
+
+  const resumen: ResumenUsuarios = {
+    total: usuarios.length,
+    administradores: usuarios.filter(
+      (usuarioItem) => usuarioItem.rol === "administrador"
+    ).length,
+    vendedores: usuarios.filter(
+      (usuarioItem) => usuarioItem.rol === "vendedor"
+    ).length,
+    activos: usuarios.filter((usuarioItem) => usuarioItem.activo).length,
+  };
+
+  // ============================================================
 
   return {
-    periodo,
-    fechaInicio,
-    fechaFin,
-    resumen,
-    resumenMetodosPago,
-    resumenCombinados,
-    resumenCanales,
-    productosMasVendidos,
-    ventasPorUsuario,
-    historialVentas,
-    datosGrafico,
+    usuarios,
     cargando,
+    guardando,
     error,
-    cambiarPeriodo,
-    aplicarRangoPersonalizado,
-    recargar: cargarReportes,
-    limpiarError,
+    notificacion,
+    resumen,
+
+    cargarUsuarios,
+    crearUsuario,
+    editarUsuario,
+    cambiarEstadoUsuario,
+    eliminarUsuario,
+    cerrarNotificacion,
   };
 }

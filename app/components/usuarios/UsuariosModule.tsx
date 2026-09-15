@@ -37,6 +37,7 @@ export default function UsuariosModule({ perfilActual }: Props) {
     crearUsuario,
     editarUsuario,
     cambiarEstadoUsuario,
+    eliminarUsuario,
     cerrarNotificacion,
   } = useUsuarios();
 
@@ -113,6 +114,24 @@ export default function UsuariosModule({ perfilActual }: Props) {
 
   async function manejarCambioEstado(usuarioItem: PerfilUsuario) {
     await cambiarEstadoUsuario(usuarioItem.id, !usuarioItem.activo);
+  }
+
+  async function manejarEliminar(usuarioItem: PerfilUsuario) {
+    // Protección adicional en el cliente: no permitir eliminar el
+    // propio usuario. La protección real vive en el servidor.
+    if (usuarioItem.id === perfilActual.id) {
+      return;
+    }
+
+    const confirmado = window.confirm(
+      "¿Está seguro de eliminar este usuario? Esta acción no se puede deshacer."
+    );
+
+    if (!confirmado) {
+      return;
+    }
+
+    await eliminarUsuario(usuarioItem.id);
   }
 
   // ----------------------------------------------------------
@@ -462,6 +481,27 @@ export default function UsuariosModule({ perfilActual }: Props) {
                           }}
                         >
                           {usuarioItem.activo ? "Desactivar" : "Activar"}
+                        </button>
+
+                        <button
+                          onClick={() => manejarEliminar(usuarioItem)}
+                          disabled={esUsuarioActual || guardando}
+                          style={{
+                            background: "#fef2f2",
+                            color: "#b91c1c",
+                            border: "1px solid #fecaca",
+                            padding: "7px 12px",
+                            borderRadius: "6px",
+                            cursor:
+                              esUsuarioActual || guardando
+                                ? "not-allowed"
+                                : "pointer",
+                            fontWeight: 600,
+                            fontSize: "13px",
+                            opacity: esUsuarioActual ? 0.5 : 1,
+                          }}
+                        >
+                          Eliminar
                         </button>
                       </div>
                     </Celda>

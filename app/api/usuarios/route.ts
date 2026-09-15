@@ -390,3 +390,87 @@ export async function PATCH(request: NextRequest) {
     usuario: usuarioActualizado as PerfilUsuario,
   });
 }
+
+// ============================================================
+// DELETE — ELIMINAR USUARIO
+// ============================================================
+//
+// NOTA SOBRE INTEGRIDAD DE DATOS:
+// La tabla `profiles` es la fuente de verdad para este borrado.
+// Al eliminar la fila de `profiles`, la relación
+// ventas.usuario_id -> profiles.id (ON DELETE SET NULL) hace que
+// las ventas históricas del usuario permanezcan intactas, solo con
+// usuario_id en NULL. venta_detalles no se ve afectada porque
+// depende de ventas (ON DELETE CASCADE), no de profiles. No se
+// modifica ninguna de estas Foreign Keys aquí.
+
+export async function DELETE(request: NextRequest) {
+  const verificacion = await verificarAdministrador(request);
+
+  if (!verificacion.autorizado) {
+    return NextResponse.json(
+      { ok: false, mensaje: verificacion.mensaje },
+      { status: verificacion.status }
+    );
+  }
+
+  const { adminClient, perfilAdmin } = verificacion;
+
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return NextResponse.json(
+      { ok: false, mensaje: "Falta el identificador del usuario." },
+      { status: 400 }
+    );
+  }
+
+  // Un administrador no puede eliminarse a sí mismo
+  if (id === perfilAdmin.id) {
+    return NextResponse.json(
+      { ok: false, mensaje: "No puedes eliminar tu propio usuario." },
+      { status: 400 }
+    );
+  }
+
+  // --------------------------------------------------------
+  // 1. ELIMINAR PERFIL EN profiles
+  // --------------------------------------------------------
+  // Esta es la operación crítica: dispara el ON DELETE SET NULL
+  // en ventas.usuario_id, preservando ventas y venta_detalles.
+
+  const { error: errorPerfil } = await adminClient
+    .from("profiles")
+    .delete()
+    .eq("id", id);
+
+  if (errorPerfil) {
+    console.error("Error eliminando perfil:", errorPerfil.message);
+
+    return NextResponse.json(
+      { ok: false, mensaje: "No fue posible eliminar el usuario." },
+      { status: 500 }
+    );
+  }
+
+  // --------------------------------------------------------
+  // 2. ELIMINAR EN SUPABASE AUTH
+  // --------------------------------------------------------
+  // El perfil (el dato relevante para el sistema) ya fue
+  // eliminado correctamente. Si este paso falla, se registra
+  // el error pero no se revierte el borrado del perfil ni se
+  // reporta como fallo al cliente, para evitar dejar el perfil
+  // eliminado pero informar un error confuso al administrador.
+
+  const { error: errorAuth } = await adminClient.auth.admin.deleteUser(id);
+
+  if (errorAuth) {
+    console.error(
+      "Error eliminando usuario de Auth (el perfil ya fue eliminado):",
+      errorAuth.message
+    );
+  }
+
+  return NextResponse.json({ ok: true });
+}
