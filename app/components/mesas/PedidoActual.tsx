@@ -47,23 +47,15 @@ export default function PedidoActual({
         ) : (
           productos.map((item) => (
             <div key={item.productoId} className="pedido-item">
+              {/* Renglón 1: producto ............ subtotal */}
               <div className="pedido-item-header">
-                <div className="pedido-item-info">
-                  <span className="pedido-item-multiplicador" aria-hidden="true">
-                    {item.cantidad}×
-                  </span>
-                  <div className="pedido-item-texto">
-                    <strong className="pedido-item-nombre">{item.nombre}</strong>
-                    <span className="pedido-item-preciounit">
-                      {formatoCOP(item.precio)} c/u
-                    </span>
-                  </div>
-                </div>
+                <strong className="pedido-item-nombre">{item.nombre}</strong>
                 <strong className="pedido-item-subtotal">
                   {formatoCOP(item.precio * item.cantidad)}
                 </strong>
               </div>
 
+              {/* Renglón 2: [− n +] × precio c/u ...... Eliminar */}
               <div className="pedido-cantidad-fila">
                 <div className="pedido-stepper">
                   <button
@@ -71,7 +63,7 @@ export default function PedidoActual({
                     aria-label={`Restar una unidad de ${item.nombre}`}
                     className="mesa-btn pedido-btn-cantidad pedido-btn-restar"
                   >
-                    <IconoMenos tamano={16} />
+                    <IconoMenos tamano={15} />
                   </button>
 
                   <strong className="pedido-cantidad">{item.cantidad}</strong>
@@ -81,9 +73,14 @@ export default function PedidoActual({
                     aria-label={`Sumar una unidad de ${item.nombre}`}
                     className="mesa-btn pedido-btn-cantidad pedido-btn-sumar"
                   >
-                    <IconoMas tamano={16} />
+                    <IconoMas tamano={15} />
                   </button>
                 </div>
+
+                <span className="pedido-item-preciounit">
+                  <span className="pedido-item-por" aria-hidden="true">×</span>
+                  {formatoCOP(item.precio)} c/u
+                </span>
 
                 <button
                   onClick={() => onEliminar(item.productoId)}
@@ -130,7 +127,7 @@ export default function PedidoActual({
           background: #f6f7f8;
           border: 1px solid #e4e7eb;
           border-radius: 18px;
-          padding: 18px;
+          padding: 14px;
           display: flex;
           flex-direction: column;
           height: 100%;
@@ -142,7 +139,7 @@ export default function PedidoActual({
           display: flex;
           align-items: center;
           gap: 10px;
-          margin-bottom: 12px;
+          margin-bottom: 10px;
           flex-shrink: 0;
         }
 
@@ -173,18 +170,35 @@ export default function PedidoActual({
           overflow-y: auto;
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 6px;
           padding: 2px 6px 2px 2px;
           margin-right: -6px;
-          scrollbar-width: thin;
-          scrollbar-color: rgba(21, 128, 61, 0.22) transparent;
         }
+
+        /* Scrollbar fina y sin flechas. En Chrome, scrollbar-width /
+           scrollbar-color anulan ::-webkit-scrollbar (y vuelven las
+           flechas), por eso esas dos solo se aplican en Firefox. */
         .pedido-lista::-webkit-scrollbar {
           width: 6px;
+        }
+        .pedido-lista::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .pedido-lista::-webkit-scrollbar-button {
+          display: none;
         }
         .pedido-lista::-webkit-scrollbar-thumb {
           background-color: rgba(21, 128, 61, 0.2);
           border-radius: 999px;
+        }
+        .pedido-lista:hover::-webkit-scrollbar-thumb {
+          background-color: rgba(21, 128, 61, 0.38);
+        }
+        @supports (-moz-appearance: none) {
+          .pedido-lista {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(21, 128, 61, 0.22) transparent;
+          }
         }
 
         .pedido-vacio {
@@ -223,7 +237,7 @@ export default function PedidoActual({
 
         .pedido-item {
           flex-shrink: 0;
-          padding: 12px;
+          padding: 9px 10px 9px 12px;
           background: #fff;
           border: 1px solid #eef0f2;
           border-radius: 14px;
@@ -252,48 +266,29 @@ export default function PedidoActual({
         .pedido-item-header {
           display: flex;
           justify-content: space-between;
-          align-items: flex-start;
+          align-items: baseline;
           gap: 10px;
-        }
-
-        .pedido-item-info {
-          display: flex;
-          align-items: flex-start;
-          gap: 10px;
-          min-width: 0;
-        }
-
-        .pedido-item-multiplicador {
-          flex-shrink: 0;
-          min-width: 32px;
-          padding: 3px 6px;
-          border-radius: 8px;
-          background: rgba(22, 163, 74, 0.1);
-          color: #157a3d;
-          font-size: 12.5px;
-          font-weight: 800;
-          text-align: center;
-          font-variant-numeric: tabular-nums;
-        }
-
-        .pedido-item-texto {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          min-width: 0;
         }
 
         .pedido-item-nombre {
-          font-size: 14.5px;
+          min-width: 0;
+          font-size: 14px;
           font-weight: 700;
           color: #14181c;
           overflow-wrap: anywhere;
         }
 
         .pedido-item-preciounit {
+          min-width: 0;
           color: #6b7280;
           font-size: 12.5px;
+          white-space: nowrap;
           font-variant-numeric: tabular-nums;
+        }
+
+        .pedido-item-por {
+          margin-right: 4px;
+          color: #9aa3ad;
         }
 
         .pedido-item-subtotal {
@@ -305,26 +300,27 @@ export default function PedidoActual({
         }
 
         .pedido-cantidad-fila {
-          margin-top: 10px;
+          margin-top: 6px;
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
         }
 
         .pedido-stepper {
+          flex-shrink: 0;
           display: inline-flex;
           align-items: center;
           gap: 2px;
-          padding: 3px;
-          border-radius: 11px;
+          padding: 2px;
+          border-radius: 10px;
           background: #f6f7f8;
           box-shadow: inset 0 0 0 1px #e4e7eb;
         }
 
         .pedido-cantidad {
-          min-width: 32px;
+          min-width: 26px;
           text-align: center;
-          font-size: 15px;
+          font-size: 14px;
           font-weight: 800;
           color: #14181c;
           font-variant-numeric: tabular-nums;
@@ -334,8 +330,8 @@ export default function PedidoActual({
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          width: 34px;
-          height: 34px;
+          width: 30px;
+          height: 30px;
           padding: 0;
           border: none;
           border-radius: 8px;
@@ -365,11 +361,12 @@ export default function PedidoActual({
 
         .pedido-btn-eliminar {
           margin-left: auto;
+          flex-shrink: 0;
           display: inline-flex;
           align-items: center;
           gap: 5px;
-          min-height: 34px;
-          padding: 6px 10px;
+          min-height: 30px;
+          padding: 5px 8px;
           background: transparent;
           border: 1px solid transparent;
           border-radius: 9px;
@@ -400,8 +397,8 @@ export default function PedidoActual({
 
         .pedido-footer {
           flex-shrink: 0;
-          margin-top: 14px;
-          padding-top: 14px;
+          margin-top: 10px;
+          padding-top: 10px;
           border-top: 1px dashed #d7dbe0;
         }
 
@@ -410,7 +407,7 @@ export default function PedidoActual({
           justify-content: space-between;
           align-items: center;
           gap: 12px;
-          padding: 14px 18px;
+          padding: 10px 16px;
           border-radius: 14px;
           background: linear-gradient(135deg, #14181c 0%, #1f2430 100%);
           box-shadow: 0 8px 20px rgba(20, 24, 28, 0.18);
@@ -427,7 +424,7 @@ export default function PedidoActual({
 
         .pedido-total-valor {
           margin: 0;
-          font-size: 30px;
+          font-size: 26px;
           font-weight: 800;
           letter-spacing: -0.02em;
           line-height: 1.1;
@@ -443,9 +440,9 @@ export default function PedidoActual({
           justify-content: center;
           gap: 10px;
           width: 100%;
-          min-height: 54px;
-          margin-top: 10px;
-          padding: 14px;
+          min-height: 48px;
+          margin-top: 8px;
+          padding: 12px;
           border: none;
           border-radius: 14px;
           background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
@@ -477,34 +474,42 @@ export default function PedidoActual({
 
         @media (max-width: 768px) {
           .pedido-panel {
-            padding: 14px;
+            padding: 12px;
             border-radius: 16px;
           }
 
           .pedido-encabezado {
-            margin-bottom: 10px;
+            margin-bottom: 8px;
           }
 
           .pedido-item {
-            padding: 10px;
+            padding: 8px 10px;
           }
 
           .pedido-footer {
-            margin-top: 10px;
-            padding-top: 10px;
+            margin-top: 8px;
+            padding-top: 8px;
           }
 
           .pedido-total-fila {
-            padding: 10px 14px;
+            padding: 8px 14px;
           }
 
           .pedido-total-valor {
-            font-size: 24px;
+            font-size: 22px;
           }
 
           .pedido-btn-cobrar {
-            min-height: 50px;
-            padding: 12px;
+            min-height: 46px;
+            padding: 11px;
+          }
+        }
+
+        /* Teléfonos angostos: el renglón de cantidad puede pasar a dos líneas */
+        @media (max-width: 420px) {
+          .pedido-cantidad-fila {
+            flex-wrap: wrap;
+            row-gap: 4px;
           }
         }
 

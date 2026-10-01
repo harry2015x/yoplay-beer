@@ -168,6 +168,49 @@ export default function MesaModal({
             </div>
           </div>
 
+          {/* ========================================= */}
+          {/* NOTA DE LA MESA (SOLO FRONTEND, NO SUPABASE) */}
+          {/* ========================================= */}
+
+          <div className="mesa-modal-nota">
+            <label
+              htmlFor="mesa-modal-nota-input"
+              className="mesa-modal-nota-label"
+            >
+              <IconoNota tamano={14} />
+              Nota de la mesa
+            </label>
+
+            <div className="mesa-modal-nota-fila">
+              <input
+                id="mesa-modal-nota-input"
+                type="text"
+                value={nota}
+                onChange={(evento) => onCambiarNota(evento.target.value)}
+                placeholder="Ej: El señor de la gorra roja"
+                maxLength={120}
+                aria-label="Nota de la mesa"
+                className="mesa-modal-nota-input"
+              />
+
+              {nota.trim() !== "" && (
+                <button
+                  type="button"
+                  onClick={() => onCambiarNota("")}
+                  aria-label="Borrar nota de la mesa"
+                  className="mesa-btn mesa-modal-nota-borrar"
+                >
+                  <IconoCerrar tamano={16} />
+                </button>
+              )}
+            </div>
+
+            <span className="mesa-modal-nota-ayuda">
+              Solo una ayuda visual mientras la mesa está abierta. No se
+              guarda al cerrar la cuenta.
+            </span>
+          </div>
+
           <button
             onClick={onCerrarModal}
             aria-label="Cerrar panel de la mesa"
@@ -175,49 +218,6 @@ export default function MesaModal({
           >
             <IconoCerrar tamano={18} />
           </button>
-        </div>
-
-        {/* ========================================= */}
-        {/* NOTA DE LA MESA (SOLO FRONTEND, NO SUPABASE) */}
-        {/* ========================================= */}
-
-        <div className="mesa-modal-nota">
-          <label
-            htmlFor="mesa-modal-nota-input"
-            className="mesa-modal-nota-label"
-          >
-            <IconoNota tamano={14} />
-            Nota de la mesa
-          </label>
-
-          <div className="mesa-modal-nota-fila">
-            <input
-              id="mesa-modal-nota-input"
-              type="text"
-              value={nota}
-              onChange={(evento) => onCambiarNota(evento.target.value)}
-              placeholder="Ej: El señor de la gorra roja"
-              maxLength={120}
-              aria-label="Nota de la mesa"
-              className="mesa-modal-nota-input"
-            />
-
-            {nota.trim() !== "" && (
-              <button
-                type="button"
-                onClick={() => onCambiarNota("")}
-                aria-label="Borrar nota de la mesa"
-                className="mesa-btn mesa-modal-nota-borrar"
-              >
-                <IconoCerrar tamano={16} />
-              </button>
-            )}
-          </div>
-
-          <span className="mesa-modal-nota-ayuda">
-            Solo una ayuda visual mientras la mesa está abierta. No se
-            guarda al cerrar la cuenta.
-          </span>
         </div>
 
         {/* ========================================= */}
@@ -421,7 +421,7 @@ export default function MesaModal({
           align-items: center;
           justify-content: center;
           z-index: 50;
-          padding: 20px;
+          padding: 16px;
         }
 
         .mesa-modal-dialogo {
@@ -456,29 +456,33 @@ export default function MesaModal({
            ENCABEZADO
         ============================================================ */
 
+        /* Escritorio: [ Mesa + estado ] [ nota ] [ cerrar ] en un solo renglón */
         .mesa-modal-header {
-          padding: 22px 28px 18px;
-          display: flex;
-          justify-content: space-between;
+          padding: 14px 20px 14px 24px;
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          grid-template-areas: "identidad nota cerrar";
           align-items: center;
-          gap: 16px;
+          column-gap: 20px;
+          row-gap: 12px;
           flex-shrink: 0;
           background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%);
           border-bottom: 1px solid #f1f2f4;
         }
 
         .mesa-modal-identidad {
+          grid-area: identidad;
           display: flex;
           align-items: center;
-          gap: 14px;
+          gap: 12px;
           min-width: 0;
         }
 
         .mesa-modal-icono {
-          width: 48px;
-          height: 48px;
+          width: 40px;
+          height: 40px;
           flex-shrink: 0;
-          border-radius: 14px;
+          border-radius: 12px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -491,13 +495,14 @@ export default function MesaModal({
           display: flex;
           align-items: center;
           flex-wrap: wrap;
-          gap: 6px 12px;
+          gap: 4px 10px;
           min-width: 0;
         }
 
         .mesa-modal-titulo {
           margin: 0;
-          font-size: 24px;
+          font-size: 20px;
+          white-space: nowrap;
           font-weight: 800;
           letter-spacing: -0.02em;
           line-height: 1.1;
@@ -537,6 +542,7 @@ export default function MesaModal({
         }
 
         .mesa-modal-cerrar {
+          grid-area: cerrar;
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -572,17 +578,17 @@ export default function MesaModal({
         ============================================================ */
 
         .mesa-modal-nota {
-          flex-shrink: 0;
-          margin: 16px 28px 0;
-          padding: 12px 14px;
-          background: #fffbeb;
+          grid-area: nota;
+          min-width: 0;
+          padding: 7px 10px 6px 12px;
+          background: rgba(255, 255, 255, 0.7);
           border: 1px dashed #fcd34d;
-          border-radius: 14px;
+          border-radius: 12px;
           display: grid;
           grid-template-columns: auto minmax(0, 1fr);
           align-items: center;
-          column-gap: 14px;
-          row-gap: 6px;
+          column-gap: 12px;
+          row-gap: 3px;
         }
 
         .mesa-modal-nota-label {
@@ -608,8 +614,8 @@ export default function MesaModal({
           flex: 1;
           min-width: 0;
           box-sizing: border-box;
-          min-height: 40px;
-          padding: 9px 12px;
+          min-height: 36px;
+          padding: 7px 12px;
           border: 1px solid #fde68a;
           border-radius: 10px;
           font-family: inherit;
@@ -635,8 +641,8 @@ export default function MesaModal({
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
-          width: 40px;
-          height: 40px;
+          width: 36px;
+          height: 36px;
           min-height: 0;
           padding: 0;
           border-radius: 10px;
@@ -655,7 +661,8 @@ export default function MesaModal({
 
         .mesa-modal-nota-ayuda {
           grid-column: 2;
-          font-size: 11.5px;
+          font-size: 11px;
+          line-height: 1.3;
           color: #b45309;
           opacity: 0.85;
         }
@@ -670,8 +677,8 @@ export default function MesaModal({
           flex-direction: row;
           flex: 1;
           min-height: 0;
-          gap: 24px;
-          padding: 18px 28px 26px;
+          gap: 20px;
+          padding: 14px 24px 18px;
           overflow: hidden;
         }
 
@@ -697,7 +704,7 @@ export default function MesaModal({
           display: flex;
           align-items: center;
           gap: 10px;
-          margin: 0 0 12px;
+          margin: 0 0 10px;
           font-size: 16px;
           font-weight: 800;
           letter-spacing: -0.01em;
@@ -722,7 +729,7 @@ export default function MesaModal({
           position: relative;
           display: flex;
           align-items: center;
-          margin-bottom: 12px;
+          margin-bottom: 10px;
           flex-shrink: 0;
         }
 
@@ -742,8 +749,8 @@ export default function MesaModal({
         .mesa-modal-buscador {
           width: 100%;
           box-sizing: border-box;
-          min-height: 44px;
-          padding: 11px 14px 11px 40px;
+          min-height: 42px;
+          padding: 10px 14px 10px 40px;
           border: 1px solid #e4e7eb;
           border-radius: 12px;
           font-family: inherit;
@@ -770,23 +777,23 @@ export default function MesaModal({
 
         /* ---------- Categorías ---------- */
 
+        /* Se desliza con el dedo/rueda; sin barra visible. El difuminado
+           del borde derecho indica que hay más categorías. El padding
+           derecho deja la última categoría fuera del difuminado. */
         .mesa-modal-categorias {
           display: flex;
           gap: 6px;
           overflow-x: auto;
           white-space: nowrap;
-          padding-bottom: 10px;
-          margin-bottom: 4px;
+          padding: 2px 32px 2px 2px;
+          margin: -2px 0 8px -2px;
           flex-shrink: 0;
-          scrollbar-width: thin;
-          scrollbar-color: rgba(21, 128, 61, 0.2) transparent;
+          scrollbar-width: none;
+          -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent);
+          mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent);
         }
         .mesa-modal-categorias::-webkit-scrollbar {
-          height: 5px;
-        }
-        .mesa-modal-categorias::-webkit-scrollbar-thumb {
-          background-color: rgba(21, 128, 61, 0.18);
-          border-radius: 999px;
+          display: none;
         }
 
         .mesa-modal-categoria-btn {
@@ -827,17 +834,34 @@ export default function MesaModal({
           overflow-y: auto;
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 6px;
           padding: 2px 6px 4px 2px;
-          scrollbar-width: thin;
-          scrollbar-color: rgba(21, 128, 61, 0.25) transparent;
         }
+
+        /* Scrollbar fina y sin flechas. En Chrome, scrollbar-width /
+           scrollbar-color anulan ::-webkit-scrollbar (y vuelven las
+           flechas), por eso esas dos solo se aplican en Firefox. */
         .mesa-modal-productos-lista::-webkit-scrollbar {
           width: 6px;
+        }
+        .mesa-modal-productos-lista::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .mesa-modal-productos-lista::-webkit-scrollbar-button {
+          display: none;
         }
         .mesa-modal-productos-lista::-webkit-scrollbar-thumb {
           background-color: rgba(21, 128, 61, 0.22);
           border-radius: 999px;
+        }
+        .mesa-modal-productos-lista:hover::-webkit-scrollbar-thumb {
+          background-color: rgba(21, 128, 61, 0.4);
+        }
+        @supports (-moz-appearance: none) {
+          .mesa-modal-productos-lista {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(21, 128, 61, 0.25) transparent;
+          }
         }
 
         .mesa-modal-estado-info,
@@ -887,7 +911,7 @@ export default function MesaModal({
           justify-content: space-between;
           align-items: center;
           gap: 12px;
-          padding: 10px 10px 10px 10px;
+          padding: 8px 8px 8px 8px;
           background: #fff;
           border: 1px solid #eef0f2;
           border-radius: 14px;
@@ -911,10 +935,10 @@ export default function MesaModal({
         }
 
         .mesa-modal-producto-imagen {
-          width: 56px;
-          height: 56px;
+          width: 44px;
+          height: 44px;
           flex-shrink: 0;
-          border-radius: 12px;
+          border-radius: 10px;
           overflow: hidden;
           background: #f6f7f8;
           display: flex;
@@ -941,11 +965,11 @@ export default function MesaModal({
           min-width: 0;
           display: flex;
           flex-direction: column;
-          gap: 5px;
+          gap: 3px;
         }
         .mesa-modal-producto-nombre {
           display: block;
-          font-size: 14.5px;
+          font-size: 14px;
           font-weight: 700;
           color: #14181c;
           white-space: nowrap;
@@ -984,18 +1008,18 @@ export default function MesaModal({
           align-items: center;
           justify-content: center;
           gap: 6px;
-          min-height: 44px;
-          padding: 8px 16px;
+          min-height: 40px;
+          padding: 8px 14px;
           background: #16a34a;
           color: white;
           border: none;
-          border-radius: 12px;
+          border-radius: 11px;
           font-family: inherit;
           font-size: 14px;
           font-weight: 700;
           white-space: nowrap;
           cursor: pointer;
-          box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
+          box-shadow: 0 3px 10px rgba(22, 163, 74, 0.22);
           transition:
             background-color 140ms ease,
             box-shadow 140ms ease,
@@ -1046,18 +1070,14 @@ export default function MesaModal({
             border-radius: 0;
           }
 
+          /* Móvil: [ Mesa + estado ] [ cerrar ] y la nota debajo */
           .mesa-modal-header {
-            padding: 16px;
-          }
-
-          .mesa-modal-icono {
-            width: 42px;
-            height: 42px;
-            border-radius: 12px;
-          }
-
-          .mesa-modal-titulo {
-            font-size: 20px;
+            padding: 14px 16px 12px;
+            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-areas:
+              "identidad cerrar"
+              "nota nota";
+            row-gap: 10px;
           }
 
           .mesa-modal-cerrar {
@@ -1066,9 +1086,9 @@ export default function MesaModal({
           }
 
           .mesa-modal-nota {
-            margin: 12px 16px 0;
-            padding: 10px 12px;
+            padding: 8px 10px;
             grid-template-columns: minmax(0, 1fr);
+            row-gap: 5px;
           }
 
           .mesa-modal-nota-ayuda {
@@ -1102,18 +1122,18 @@ export default function MesaModal({
         ============================================================ */
 
         @media (max-width: 480px) {
+          .mesa-modal-header {
+            padding: 12px 12px 10px;
+          }
+
           .mesa-modal-contenido {
             padding: 12px;
           }
 
-          .mesa-modal-nota {
-            margin: 10px 12px 0;
-          }
-
           .mesa-modal-producto-imagen {
-            width: 46px;
-            height: 46px;
-            border-radius: 10px;
+            width: 40px;
+            height: 40px;
+            border-radius: 9px;
           }
 
           .mesa-modal-producto-fila {
@@ -1133,7 +1153,20 @@ export default function MesaModal({
 
         @media (min-width: 769px) {
           .mesa-modal-dialogo {
-            height: min(88vh, 820px);
+            height: min(90vh, 820px);
+            max-height: 90vh;
+          }
+        }
+
+        /* Laptops con poca altura útil: aprovechar casi toda la pantalla */
+        @media (min-width: 769px) and (max-height: 800px) {
+          .mesa-modal-overlay {
+            padding: 10px 16px;
+          }
+
+          .mesa-modal-dialogo {
+            height: 96vh;
+            max-height: 96vh;
           }
         }
 
