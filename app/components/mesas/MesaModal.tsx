@@ -10,6 +10,16 @@ import {
 
 import PedidoActual from "./PedidoActual";
 
+import {
+  IconoBolsa,
+  IconoBuscar,
+  IconoCaja,
+  IconoCerrar,
+  IconoMas,
+  IconoNota,
+  IconoSilla,
+} from "./IconosMesas";
+
 type Props = {
   mesa: Mesa;
 
@@ -141,12 +151,21 @@ export default function MesaModal({
         {/* ========================================= */}
 
         <div className="mesa-modal-header">
-          <div>
-            <h2 id="mesa-modal-title" className="mesa-modal-titulo">
-              🪑 Mesa {mesa.numero}
-            </h2>
+          <div className="mesa-modal-identidad">
+            <span className="mesa-modal-icono">
+              <IconoSilla tamano={22} />
+            </span>
 
-            <span className="mesa-modal-badge">OCUPADA</span>
+            <div className="mesa-modal-identidad-texto">
+              <h2 id="mesa-modal-title" className="mesa-modal-titulo">
+                Mesa {mesa.numero}
+              </h2>
+
+              <span className="mesa-modal-badge">
+                <span className="mesa-modal-badge-punto" aria-hidden="true" />
+                OCUPADA
+              </span>
+            </div>
           </div>
 
           <button
@@ -154,7 +173,7 @@ export default function MesaModal({
             aria-label="Cerrar panel de la mesa"
             className="mesa-btn mesa-modal-cerrar"
           >
-            ×
+            <IconoCerrar tamano={18} />
           </button>
         </div>
 
@@ -167,7 +186,8 @@ export default function MesaModal({
             htmlFor="mesa-modal-nota-input"
             className="mesa-modal-nota-label"
           >
-            📝 Nota de la mesa
+            <IconoNota tamano={14} />
+            Nota de la mesa
           </label>
 
           <div className="mesa-modal-nota-fila">
@@ -189,7 +209,7 @@ export default function MesaModal({
                 aria-label="Borrar nota de la mesa"
                 className="mesa-btn mesa-modal-nota-borrar"
               >
-                ×
+                <IconoCerrar tamano={16} />
               </button>
             )}
           </div>
@@ -210,20 +230,31 @@ export default function MesaModal({
           {/* ===================================== */}
 
           <div className="mesa-modal-productos">
-            <h3 className="mesa-modal-seccion-titulo">🛍️ Productos</h3>
+            <h3 className="mesa-modal-seccion-titulo">
+              <span className="mesa-modal-seccion-icono">
+                <IconoBolsa tamano={16} />
+              </span>
+              Productos
+            </h3>
 
             {/* ================================= */}
             {/* BUSCADOR */}
             {/* ================================= */}
 
-            <input
-              type="search"
-              value={busqueda}
-              onChange={(evento) => setBusqueda(evento.target.value)}
-              placeholder="🔍 Buscar producto..."
-              aria-label="Buscar producto"
-              className="mesa-modal-buscador"
-            />
+            <div className="mesa-modal-buscador-caja">
+              <span className="mesa-modal-buscador-icono">
+                <IconoBuscar tamano={17} />
+              </span>
+
+              <input
+                type="search"
+                value={busqueda}
+                onChange={(evento) => setBusqueda(evento.target.value)}
+                placeholder="Buscar producto..."
+                aria-label="Buscar producto"
+                className="mesa-modal-buscador"
+              />
+            </div>
 
             {/* ================================= */}
             {/* CATEGORÍAS */}
@@ -284,7 +315,7 @@ export default function MesaModal({
                       className="mesa-modal-estado-vacio-icono"
                       aria-hidden="true"
                     >
-                      🔍
+                      <IconoBuscar tamano={22} />
                     </span>
                     <strong>No encontramos productos.</strong>
                     <span>
@@ -312,26 +343,30 @@ export default function MesaModal({
                             className="mesa-modal-producto-imagen-img"
                           />
                         ) : (
-                          <span aria-hidden="true">📦</span>
+                          <span aria-hidden="true">
+                            <IconoCaja tamano={22} />
+                          </span>
                         )}
                       </div>
 
-                      {/* NOMBRE Y PRECIO */}
+                      {/* NOMBRE, PRECIO Y CATEGORÍA */}
 
                       <div className="mesa-modal-producto-texto">
                         <strong className="mesa-modal-producto-nombre">
                           {producto.nombre}
                         </strong>
 
-                        {producto.categoria && (
-                          <div className="mesa-modal-producto-categoria">
-                            {producto.categoria}
-                          </div>
-                        )}
+                        <div className="mesa-modal-producto-meta">
+                          <span className="mesa-modal-producto-precio">
+                            {formatoCOP(producto.precio)}
+                          </span>
 
-                        <span className="mesa-modal-producto-precio">
-                          {formatoCOP(producto.precio)}
-                        </span>
+                          {producto.categoria && (
+                            <span className="mesa-modal-producto-categoria">
+                              {producto.categoria}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -342,7 +377,8 @@ export default function MesaModal({
                       aria-label={`Agregar ${producto.nombre} a la mesa ${mesa.numero}`}
                       className="mesa-btn mesa-modal-agregar-btn"
                     >
-                      + Agregar
+                      <IconoMas tamano={16} />
+                      Agregar
                     </button>
                   </div>
                 ))}
@@ -367,10 +403,20 @@ export default function MesaModal({
       </div>
 
       <style jsx>{`
+        /* ============================================================
+           OVERLAY Y DIÁLOGO
+           Paleta YOPLAY BEER: verde #16a34a, verde oscuro #0f5c2e,
+           naranja #f59e0b, rojo #ef4444, tinta #14181c, fondos claros.
+           Los iconos SVG vienen de IconosMesas, por eso se estilan
+           con :global(svg).
+        ============================================================ */
+
         .mesa-modal-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(15, 23, 42, 0.5);
+          background: rgba(20, 24, 28, 0.55);
+          backdrop-filter: blur(3px);
+          -webkit-backdrop-filter: blur(3px);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -379,48 +425,146 @@ export default function MesaModal({
         }
 
         .mesa-modal-dialogo {
+          position: relative;
           background: white;
-          border-radius: 18px;
+          border-radius: 22px;
           width: 100%;
-          max-width: 1000px;
-          max-height: 85vh;
+          max-width: 1080px;
+          max-height: 88vh;
           display: flex;
           flex-direction: column;
           overflow: hidden;
-          box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+          color: #1f2430;
+          box-shadow:
+            0 30px 60px -12px rgba(20, 24, 28, 0.35),
+            0 0 0 1px rgba(20, 24, 28, 0.05);
         }
 
+        /* Franja superior de estado (naranja = ocupada) */
+        .mesa-modal-dialogo::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 4px;
+          background: linear-gradient(90deg, #f59e0b, #fbbf24);
+          z-index: 1;
+        }
+
+        /* ============================================================
+           ENCABEZADO
+        ============================================================ */
+
         .mesa-modal-header {
-          padding: 20px 24px;
+          padding: 22px 28px 18px;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          border-bottom: 1px solid #e5e7eb;
+          gap: 16px;
           flex-shrink: 0;
+          background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%);
+          border-bottom: 1px solid #f1f2f4;
+        }
+
+        .mesa-modal-identidad {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          min-width: 0;
+        }
+
+        .mesa-modal-icono {
+          width: 48px;
+          height: 48px;
+          flex-shrink: 0;
+          border-radius: 14px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: #fef3c7;
+          color: #92400e;
+          box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.25);
+        }
+
+        .mesa-modal-identidad-texto {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 6px 12px;
+          min-width: 0;
         }
 
         .mesa-modal-titulo {
           margin: 0;
+          font-size: 24px;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          line-height: 1.1;
+          color: #14181c;
         }
 
         .mesa-modal-badge {
-          font-size: 12px;
-          font-weight: 700;
-          padding: 3px 10px;
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          font-size: 11.5px;
+          font-weight: 800;
+          letter-spacing: 0.07em;
+          padding: 5px 12px;
           border-radius: 999px;
           background: #fef3c7;
           color: #92400e;
+          box-shadow: inset 0 0 0 1px #fde68a;
+        }
+
+        .mesa-modal-badge-punto {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: #f59e0b;
+          animation: mesa-modal-pulso 1.8s ease-out infinite;
+        }
+
+        @keyframes mesa-modal-pulso {
+          0% {
+            box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55);
+          }
+          70%,
+          100% {
+            box-shadow: 0 0 0 7px rgba(245, 158, 11, 0);
+          }
         }
 
         .mesa-modal-cerrar {
-          background: #f3f4f6;
-          border: none;
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          cursor: pointer;
-          font-size: 18px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
           flex-shrink: 0;
+          padding: 0;
+          border: 1px solid #e4e7eb;
+          border-radius: 12px;
+          background: white;
+          color: #6b7280;
+          cursor: pointer;
+          transition:
+            background-color 140ms ease,
+            color 140ms ease,
+            border-color 140ms ease,
+            transform 120ms ease;
+        }
+        .mesa-modal-cerrar:hover {
+          background: #f6f7f8;
+          border-color: #d1d5db;
+          color: #14181c;
+        }
+        .mesa-modal-cerrar :global(svg) {
+          transition: transform 200ms ease;
+        }
+        .mesa-modal-cerrar:hover :global(svg) {
+          transform: rotate(90deg);
         }
 
         /* ============================================================
@@ -429,70 +573,91 @@ export default function MesaModal({
 
         .mesa-modal-nota {
           flex-shrink: 0;
-          padding: 14px 24px;
+          margin: 16px 28px 0;
+          padding: 12px 14px;
           background: #fffbeb;
-          border-bottom: 1px solid #e5e7eb;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
+          border: 1px dashed #fcd34d;
+          border-radius: 14px;
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr);
+          align-items: center;
+          column-gap: 14px;
+          row-gap: 6px;
         }
 
         .mesa-modal-nota-label {
-          font-size: 12.5px;
-          font-weight: 700;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11.5px;
+          font-weight: 800;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
           color: #92400e;
+          white-space: nowrap;
         }
 
         .mesa-modal-nota-fila {
           display: flex;
           align-items: center;
           gap: 8px;
+          min-width: 0;
         }
 
         .mesa-modal-nota-input {
           flex: 1;
           min-width: 0;
           box-sizing: border-box;
-          padding: 10px 12px;
+          min-height: 40px;
+          padding: 9px 12px;
           border: 1px solid #fde68a;
-          border-radius: 8px;
+          border-radius: 10px;
+          font-family: inherit;
           font-size: 14px;
           color: #78350f;
           background: #fff;
+          outline: none;
+          transition:
+            border-color 140ms ease,
+            box-shadow 140ms ease;
         }
         .mesa-modal-nota-input::placeholder {
           color: #b45309;
-          opacity: 0.6;
+          opacity: 0.55;
         }
-        .mesa-modal-nota-input:focus-visible {
-          outline: 2px solid #2563eb;
-          outline-offset: 1px;
-          border-color: #2563eb;
+        .mesa-modal-nota-input:focus {
+          border-color: #f59e0b;
+          box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
         }
 
         .mesa-modal-nota-borrar {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           flex-shrink: 0;
-          width: 36px;
-          height: 36px;
+          width: 40px;
+          height: 40px;
           min-height: 0;
-          border-radius: 8px;
+          padding: 0;
+          border-radius: 10px;
           border: 1px solid #fde68a;
           background: #fff;
           color: #92400e;
-          font-size: 18px;
-          line-height: 1;
           cursor: pointer;
+          transition:
+            background-color 140ms ease,
+            border-color 140ms ease;
+        }
+        .mesa-modal-nota-borrar:hover {
+          background: #fef3c7;
+          border-color: #fcd34d;
         }
 
         .mesa-modal-nota-ayuda {
+          grid-column: 2;
           font-size: 11.5px;
           color: #b45309;
-        }
-
-        @media (max-width: 768px) {
-          .mesa-modal-nota {
-            padding: 12px 16px;
-          }
+          opacity: 0.85;
         }
 
         /* ============================================================
@@ -505,13 +670,13 @@ export default function MesaModal({
           flex-direction: row;
           flex: 1;
           min-height: 0;
-          gap: 20px;
-          padding: 20px 24px;
+          gap: 24px;
+          padding: 18px 28px 26px;
           overflow: hidden;
         }
 
         .mesa-modal-productos {
-          flex: 1 1 280px;
+          flex: 1.3 1 300px;
           min-width: 280px;
           min-height: 0;
           display: flex;
@@ -520,7 +685,7 @@ export default function MesaModal({
         }
 
         .mesa-modal-pedido-col {
-          flex: 1.2 1 320px;
+          flex: 1 1 340px;
           min-width: 320px;
           min-height: 0;
           display: flex;
@@ -529,77 +694,163 @@ export default function MesaModal({
         }
 
         .mesa-modal-seccion-titulo {
-          margin-top: 0;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin: 0 0 12px;
+          font-size: 16px;
+          font-weight: 800;
+          letter-spacing: -0.01em;
+          color: #14181c;
+          flex-shrink: 0;
+        }
+
+        .mesa-modal-seccion-icono {
+          width: 30px;
+          height: 30px;
+          border-radius: 9px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(22, 163, 74, 0.1);
+          color: #157a3d;
+        }
+
+        /* ---------- Buscador ---------- */
+
+        .mesa-modal-buscador-caja {
+          position: relative;
+          display: flex;
+          align-items: center;
           margin-bottom: 12px;
           flex-shrink: 0;
+        }
+
+        .mesa-modal-buscador-icono {
+          position: absolute;
+          left: 13px;
+          display: inline-flex;
+          color: #9aa3ad;
+          pointer-events: none;
+          transition: color 140ms ease;
+        }
+
+        .mesa-modal-buscador-caja:focus-within .mesa-modal-buscador-icono {
+          color: #16a34a;
         }
 
         .mesa-modal-buscador {
           width: 100%;
           box-sizing: border-box;
-          padding: 12px 14px;
-          margin-bottom: 12px;
-          border: 1px solid #e5e7eb;
-          border-radius: 10px;
+          min-height: 44px;
+          padding: 11px 14px 11px 40px;
+          border: 1px solid #e4e7eb;
+          border-radius: 12px;
+          font-family: inherit;
           font-size: 14.5px;
-          color: #111827;
-          background: #fff;
-          flex-shrink: 0;
+          color: #1f2430;
+          background: #f6f7f8;
+          outline: none;
+          transition:
+            border-color 140ms ease,
+            box-shadow 140ms ease,
+            background-color 140ms ease;
         }
-        .mesa-modal-buscador:focus-visible {
-          outline: 2px solid #2563eb;
-          outline-offset: 1px;
-          border-color: #2563eb;
+        .mesa-modal-buscador:hover {
+          border-color: #d1d5db;
+        }
+        .mesa-modal-buscador:focus {
+          background: #fff;
+          border-color: #16a34a;
+          box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
         }
         .mesa-modal-buscador::placeholder {
-          color: #9ca3af;
+          color: #9aa3ad;
         }
+
+        /* ---------- Categorías ---------- */
 
         .mesa-modal-categorias {
           display: flex;
-          gap: 8px;
+          gap: 6px;
           overflow-x: auto;
           white-space: nowrap;
           padding-bottom: 10px;
-          margin-bottom: 6px;
-          scrollbar-width: thin;
+          margin-bottom: 4px;
           flex-shrink: 0;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(21, 128, 61, 0.2) transparent;
+        }
+        .mesa-modal-categorias::-webkit-scrollbar {
+          height: 5px;
+        }
+        .mesa-modal-categorias::-webkit-scrollbar-thumb {
+          background-color: rgba(21, 128, 61, 0.18);
+          border-radius: 999px;
         }
 
         .mesa-modal-categoria-btn {
           flex-shrink: 0;
-          padding: 8px 14px;
+          min-height: 36px;
+          padding: 7px 14px;
           border-radius: 999px;
-          border: 1px solid #e5e7eb;
+          border: 1px solid #e4e7eb;
           background: #fff;
-          color: #374151;
+          color: #4b5563;
+          font-family: inherit;
           font-size: 13px;
           font-weight: 600;
           cursor: pointer;
+          transition:
+            background-color 140ms ease,
+            border-color 140ms ease,
+            color 140ms ease,
+            box-shadow 140ms ease;
+        }
+        .mesa-modal-categoria-btn:hover:not(.mesa-modal-categoria-btn--activa) {
+          background: #f6f7f8;
+          border-color: #d1d5db;
+          color: #14181c;
         }
         .mesa-modal-categoria-btn--activa {
-          background: #16a34a;
-          border-color: #16a34a;
+          background: #14181c;
+          border-color: #14181c;
           color: #fff;
+          box-shadow: 0 2px 8px rgba(20, 24, 28, 0.18);
         }
 
-        /* Única zona con scroll interno del panel izquierdo */
+        /* ---------- Lista (única zona con scroll del panel izquierdo) ---------- */
+
         .mesa-modal-productos-lista {
           flex: 1;
           min-height: 0;
           overflow-y: auto;
-          padding-right: 4px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          padding: 2px 6px 4px 2px;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(21, 128, 61, 0.25) transparent;
+        }
+        .mesa-modal-productos-lista::-webkit-scrollbar {
+          width: 6px;
+        }
+        .mesa-modal-productos-lista::-webkit-scrollbar-thumb {
+          background-color: rgba(21, 128, 61, 0.22);
+          border-radius: 999px;
         }
 
         .mesa-modal-estado-info,
         .mesa-modal-estado-vacio {
-          padding: 20px;
+          padding: 24px 20px;
           text-align: center;
           color: #6b7280;
+          font-size: 14px;
         }
         .mesa-modal-estado-vacio {
-          background: #f9fafb;
-          border-radius: 10px;
+          background: #f6f7f8;
+          border: 1px dashed #d7dbe0;
+          border-radius: 14px;
         }
         .mesa-modal-estado-vacio--busqueda {
           display: flex;
@@ -609,25 +860,46 @@ export default function MesaModal({
           padding: 32px 16px;
         }
         .mesa-modal-estado-vacio-icono {
-          font-size: 26px;
+          width: 48px;
+          height: 48px;
+          border-radius: 14px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           margin-bottom: 4px;
+          background: #fff;
+          color: #9aa3ad;
+          box-shadow: inset 0 0 0 1px #e4e7eb;
         }
         .mesa-modal-estado-vacio--busqueda strong {
-          color: #374151;
+          color: #1f2430;
           font-size: 14.5px;
         }
-        .mesa-modal-estado-vacio--busqueda span {
+        .mesa-modal-estado-vacio--busqueda span:not(.mesa-modal-estado-vacio-icono) {
           font-size: 13px;
           max-width: 260px;
         }
+
+        /* ---------- Tarjeta de producto ---------- */
 
         .mesa-modal-producto-fila {
           display: flex;
           justify-content: space-between;
           align-items: center;
           gap: 12px;
-          padding: 12px 0;
-          border-bottom: 1px solid #e5e7eb;
+          padding: 10px 10px 10px 10px;
+          background: #fff;
+          border: 1px solid #eef0f2;
+          border-radius: 14px;
+          flex-shrink: 0;
+          transition:
+            border-color 160ms ease,
+            box-shadow 160ms ease,
+            transform 160ms ease;
+        }
+        .mesa-modal-producto-fila:hover {
+          border-color: #bbf7d0;
+          box-shadow: 0 6px 16px rgba(16, 24, 40, 0.07);
         }
 
         .mesa-modal-producto-info {
@@ -639,44 +911,71 @@ export default function MesaModal({
         }
 
         .mesa-modal-producto-imagen {
-          width: 54px;
-          height: 54px;
+          width: 56px;
+          height: 56px;
           flex-shrink: 0;
-          border-radius: 10px;
+          border-radius: 12px;
           overflow: hidden;
-          background: #f3f4f6;
+          background: #f6f7f8;
           display: flex;
           align-items: center;
           justify-content: center;
-          border: 1px solid #e5e7eb;
-          font-size: 24px;
+          color: #9aa3ad;
+          box-shadow: inset 0 0 0 1px rgba(20, 24, 28, 0.06);
+        }
+        .mesa-modal-producto-imagen > span {
+          display: inline-flex;
         }
         .mesa-modal-producto-imagen-img {
           width: 100%;
           height: 100%;
           object-fit: cover;
           display: block;
+          transition: transform 240ms ease;
+        }
+        .mesa-modal-producto-fila:hover .mesa-modal-producto-imagen-img {
+          transform: scale(1.05);
         }
 
         .mesa-modal-producto-texto {
           min-width: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
         }
         .mesa-modal-producto-nombre {
           display: block;
+          font-size: 14.5px;
+          font-weight: 700;
+          color: #14181c;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
         }
-        .mesa-modal-producto-categoria {
-          font-size: 12px;
-          color: #6b7280;
-          margin-top: 2px;
+        .mesa-modal-producto-meta {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 4px 8px;
+          min-width: 0;
         }
         .mesa-modal-producto-precio {
-          color: #6b7280;
           font-size: 14px;
-          display: block;
-          margin-top: 3px;
+          font-weight: 800;
+          color: #0f5c2e;
+          font-variant-numeric: tabular-nums;
+        }
+        .mesa-modal-producto-categoria {
+          font-size: 11.5px;
+          font-weight: 600;
+          color: #6b7280;
+          background: #f6f7f8;
+          padding: 2px 8px;
+          border-radius: 999px;
+          max-width: 100%;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .mesa-modal-agregar-btn {
@@ -684,15 +983,44 @@ export default function MesaModal({
           display: inline-flex;
           align-items: center;
           justify-content: center;
+          gap: 6px;
           min-height: 44px;
+          padding: 8px 16px;
           background: #16a34a;
           color: white;
           border: none;
-          padding: 8px 16px;
-          border-radius: 8px;
-          cursor: pointer;
+          border-radius: 12px;
+          font-family: inherit;
+          font-size: 14px;
           font-weight: 700;
           white-space: nowrap;
+          cursor: pointer;
+          box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
+          transition:
+            background-color 140ms ease,
+            box-shadow 140ms ease,
+            filter 120ms ease,
+            transform 120ms ease;
+        }
+        .mesa-modal-agregar-btn:hover {
+          background: #15803d;
+          box-shadow: 0 6px 16px rgba(22, 163, 74, 0.32);
+        }
+        .mesa-modal-agregar-btn :global(svg) {
+          transition: transform 160ms ease;
+        }
+        .mesa-modal-agregar-btn:hover :global(svg) {
+          transform: rotate(90deg);
+        }
+
+        /* ---------- Foco accesible ---------- */
+
+        .mesa-modal-cerrar:focus-visible,
+        .mesa-modal-nota-borrar:focus-visible,
+        .mesa-modal-categoria-btn:focus-visible,
+        .mesa-modal-agregar-btn:focus-visible {
+          outline: 2px solid #16a34a;
+          outline-offset: 2px;
         }
 
         /* ============================================================
@@ -722,16 +1050,35 @@ export default function MesaModal({
             padding: 16px;
           }
 
+          .mesa-modal-icono {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+          }
+
+          .mesa-modal-titulo {
+            font-size: 20px;
+          }
+
           .mesa-modal-cerrar {
             width: 44px;
             height: 44px;
-            font-size: 20px;
+          }
+
+          .mesa-modal-nota {
+            margin: 12px 16px 0;
+            padding: 10px 12px;
+            grid-template-columns: minmax(0, 1fr);
+          }
+
+          .mesa-modal-nota-ayuda {
+            grid-column: 1;
           }
 
           .mesa-modal-contenido {
             flex-direction: column;
-            padding: 16px;
-            gap: 16px;
+            padding: 14px 16px 16px;
+            gap: 14px;
           }
 
           .mesa-modal-productos,
@@ -740,8 +1087,13 @@ export default function MesaModal({
             min-width: 0;
           }
 
-          .mesa-modal-agregar-btn {
-            padding: 10px 16px;
+          .mesa-modal-seccion-titulo {
+            margin-bottom: 10px;
+            font-size: 15px;
+          }
+
+          .mesa-modal-buscador-caja {
+            margin-bottom: 10px;
           }
         }
 
@@ -754,172 +1106,50 @@ export default function MesaModal({
             padding: 12px;
           }
 
+          .mesa-modal-nota {
+            margin: 10px 12px 0;
+          }
+
           .mesa-modal-producto-imagen {
             width: 46px;
             height: 46px;
-            font-size: 20px;
+            border-radius: 10px;
           }
 
           .mesa-modal-producto-fila {
             gap: 10px;
-            padding: 10px 0;
+            padding: 8px;
           }
 
-          .mesa-modal-buscador {
-            padding: 11px 12px;
+          .mesa-modal-agregar-btn {
+            padding: 8px 12px;
           }
         }
 
         /* ============================================================
-           MEJORAS EXCLUSIVAS DE ESCRITORIO (≥769px)
-           Solo estética/UX: scrollbars finos, jerarquía, espaciado.
-           No modifica ninguna regla usada por el diseño móvil de arriba.
+           ESCRITORIO (≥769px): alto estable para que el pedido y el
+           botón "Cobrar" no cambien de posición al filtrar.
         ============================================================ */
 
         @media (min-width: 769px) {
           .mesa-modal-dialogo {
-            border-radius: 20px;
-            box-shadow:
-              0 30px 60px -12px rgba(15, 23, 42, 0.28),
-              0 0 0 1px rgba(15, 23, 42, 0.04);
-          }
-
-          .mesa-modal-header {
-            padding: 22px 28px;
-          }
-
-          .mesa-modal-titulo {
-            font-size: 20px;
-            letter-spacing: -0.01em;
-          }
-
-          .mesa-modal-badge {
-            padding: 4px 12px;
-            margin-top: 6px;
-            letter-spacing: 0.02em;
-          }
-
-          .mesa-modal-cerrar {
-            transition: background-color 120ms ease;
-          }
-          .mesa-modal-cerrar:hover {
-            background: #e5e7eb;
-          }
-
-          .mesa-modal-nota {
-            padding: 12px 28px;
-          }
-
-          .mesa-modal-nota-label {
-            letter-spacing: 0.02em;
-          }
-
-          .mesa-modal-contenido {
-            padding: 22px 28px 26px;
-            gap: 0;
-          }
-
-          .mesa-modal-productos {
-            box-sizing: border-box;
-            padding-right: 24px;
-          }
-
-          .mesa-modal-pedido-col {
-            box-sizing: border-box;
-            padding-left: 24px;
-            border-left: 1px solid #eef0f2;
-          }
-
-          .mesa-modal-buscador {
-            padding: 11px 14px;
-            border-radius: 12px;
-            transition: border-color 120ms ease;
-          }
-          .mesa-modal-buscador:hover {
-            border-color: #d1d5db;
-          }
-
-          .mesa-modal-categorias {
-            gap: 6px;
-            padding-bottom: 8px;
-          }
-
-          .mesa-modal-categoria-btn {
-            padding: 7px 14px;
-            transition:
-              background-color 120ms ease,
-              border-color 120ms ease,
-              color 120ms ease;
-          }
-          .mesa-modal-categoria-btn:hover:not(.mesa-modal-categoria-btn--activa) {
-            background: #f3f4f6;
-            border-color: #d1d5db;
-          }
-
-          .mesa-modal-productos-lista {
-            padding-right: 10px;
-          }
-
-          .mesa-modal-producto-fila {
-            padding: 12px 8px;
-            margin: 0 -8px;
-            border-radius: 10px;
-            border-bottom: 1px solid #f1f2f4;
-            transition: background-color 120ms ease;
-          }
-          .mesa-modal-producto-fila:hover {
-            background: #f9fafb;
-          }
-          .mesa-modal-producto-fila:last-child {
-            border-bottom: none;
-          }
-
-          .mesa-modal-producto-imagen {
-            box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.04);
-          }
-
-          /* Scrollbar vertical — lista de productos: fino y discreto */
-          .mesa-modal-productos-lista {
-            scrollbar-width: thin;
-            scrollbar-color: rgba(21, 128, 61, 0.25) transparent;
-          }
-          .mesa-modal-productos-lista::-webkit-scrollbar {
-            width: 6px;
-          }
-          .mesa-modal-productos-lista::-webkit-scrollbar-track {
-            background: transparent;
-          }
-          .mesa-modal-productos-lista::-webkit-scrollbar-thumb {
-            background-color: rgba(21, 128, 61, 0.22);
-            border-radius: 999px;
-          }
-          .mesa-modal-productos-lista:hover::-webkit-scrollbar-thumb {
-            background-color: rgba(21, 128, 61, 0.4);
-          }
-
-          /* Scrollbar horizontal — categorías: mucho más discreta */
-          .mesa-modal-categorias {
-            scrollbar-width: thin;
-            scrollbar-color: rgba(21, 128, 61, 0.2) transparent;
-          }
-          .mesa-modal-categorias::-webkit-scrollbar {
-            height: 5px;
-          }
-          .mesa-modal-categorias::-webkit-scrollbar-track {
-            background: transparent;
-          }
-          .mesa-modal-categorias::-webkit-scrollbar-thumb {
-            background-color: rgba(21, 128, 61, 0.18);
-            border-radius: 999px;
-          }
-          .mesa-modal-categorias:hover::-webkit-scrollbar-thumb {
-            background-color: rgba(21, 128, 61, 0.35);
+            height: min(88vh, 820px);
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
           .mesas-modal-entrada {
             animation: none !important;
+          }
+
+          .mesa-modal-badge-punto {
+            animation: none;
+          }
+
+          .mesa-modal-cerrar:hover :global(svg),
+          .mesa-modal-agregar-btn:hover :global(svg),
+          .mesa-modal-producto-fila:hover .mesa-modal-producto-imagen-img {
+            transform: none;
           }
         }
       `}</style>

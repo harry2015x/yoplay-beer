@@ -110,6 +110,33 @@ export function IconoMas(props: PropsIcono) {
   );
 }
 
+export function IconoMenos(props: PropsIcono) {
+  return (
+    <Base {...props}>
+      <path d="M5 12h14" />
+    </Base>
+  );
+}
+
+export function IconoCerrar(props: PropsIcono) {
+  return (
+    <Base {...props}>
+      <path d="M6 6l12 12" />
+      <path d="M18 6L6 18" />
+    </Base>
+  );
+}
+
+export function IconoCaja(props: PropsIcono) {
+  return (
+    <Base {...props}>
+      <path d="M3.5 7.5L12 3l8.5 4.5v9L12 21l-8.5-4.5z" />
+      <path d="M3.5 7.5L12 12l8.5-4.5" />
+      <path d="M12 12v9" />
+    </Base>
+  );
+}
+
 export function IconoFlecha(props: PropsIcono) {
   return (
     <Base {...props}>
