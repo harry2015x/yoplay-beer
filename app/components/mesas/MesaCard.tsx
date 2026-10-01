@@ -1,7 +1,17 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { Mesa, cantidadProductos, formatoCOP } from "../../../types/mesas";
+import {
+  IconoBasura,
+  IconoBolsa,
+  IconoFlecha,
+  IconoGestionar,
+  IconoNota,
+  IconoReloj,
+  IconoSilla,
+  IconoTarjeta,
+} from "./IconosMesas";
 
 type Props = {
   mesa: Mesa;
@@ -39,6 +49,9 @@ function tiempoAbierta(desde: Date | null): string | null {
   return `${horas}h ${resto}min abierta`;
 }
 
+// Los estilos de la tarjeta viven en la hoja de estilos de MesasModule.tsx
+// (clases .mesa-card*, .mesa-accion*).
+
 export default function MesaCard({
   mesa,
   onAbrir,
@@ -63,104 +76,81 @@ export default function MesaCard({
   const tiempo = tiempoAbierta(mesa.abiertaDesde);
 
   return (
-    <article
-      className="mesa-card"
-      style={{
-        background: "white",
-        borderRadius: "16px",
-        padding: "20px",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.07)",
-        borderTop: `4px solid ${libre ? "#22c55e" : "#f59e0b"}`,
-        display: "flex",
-        flexDirection: "column",
-        gap: "12px",
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span style={{ fontSize: "30px" }} aria-hidden="true">
-            🪑
+    <article className={`mesa-card ${libre ? "mesa-card--libre" : "mesa-card--ocupada"}`}>
+      {/* ===================================================
+          CABECERA: IDENTIDAD + ESTADO
+      =================================================== */}
+
+      <header className="mesa-card__cabecera">
+        <div className="mesa-card__identidad">
+          <span className="mesa-card__icono">
+            <IconoSilla tamano={20} />
           </span>
-          <h3 style={{ margin: 0, fontSize: "18px" }}>Mesa {mesa.numero}</h3>
+          <h3 className="mesa-card__titulo">
+            <span className="mesa-card__titulo-etiqueta">Mesa</span>{" "}
+            <span className="mesa-card__numero">{mesa.numero}</span>
+          </h3>
         </div>
 
-        <span
-          style={{
-            fontSize: "12px",
-            fontWeight: 700,
-            padding: "4px 10px",
-            borderRadius: "999px",
-            background: libre ? "#dcfce7" : "#fef3c7",
-            color: libre ? "#166534" : "#92400e",
-          }}
-        >
+        <span className="mesa-card__estado">
+          <span className="mesa-card__punto" aria-hidden="true" />
           {libre ? "LIBRE" : "OCUPADA"}
         </span>
-      </div>
+      </header>
+
+      {/* ===================================================
+          NOTA TEMPORAL (SOLO OCUPADA)
+      =================================================== */}
 
       {!libre && nota && nota.trim() !== "" && (
-        <div
-          style={{
-            background: "#fef3c7",
-            borderRadius: "10px",
-            padding: "8px 10px",
-          }}
-        >
-          <span
-            style={{
-              display: "block",
-              fontSize: "10px",
-              fontWeight: 700,
-              letterSpacing: "0.03em",
-              color: "#92400e",
-            }}
-          >
+        <div className="mesa-card__nota">
+          <span className="mesa-card__nota-etiqueta">
+            <IconoNota tamano={12} />
             NOTA DE LA MESA
           </span>
-          <span
-            style={{
-              display: "block",
-              fontSize: "13px",
-              color: "#78350f",
-              marginTop: "2px",
-              overflowWrap: "break-word",
-            }}
-          >
-            {nota}
-          </span>
+          <span className="mesa-card__nota-texto">{nota}</span>
         </div>
       )}
+
+      {/* ===================================================
+          DATOS DE LA CUENTA (SOLO OCUPADA)
+      =================================================== */}
 
       {!libre && (
-        <div style={{ fontSize: "14px", color: "#374151", display: "flex", flexDirection: "column", gap: "2px" }}>
-          <span>
-            Total: <strong>{formatoCOP(mesa.total)}</strong>
-          </span>
-          <span style={{ color: "#6b7280" }}>
-            {totalProductos} {totalProductos === 1 ? "producto" : "productos"}
-          </span>
-          {tiempo && <span style={{ color: "#9ca3af", fontSize: "12px" }}>{tiempo}</span>}
+        <div className="mesa-card__datos">
+          <div className="mesa-card__total">
+            <span className="mesa-card__total-etiqueta">Total</span>
+            <strong className="mesa-card__total-valor">{formatoCOP(mesa.total)}</strong>
+          </div>
+
+          <div className="mesa-card__meta">
+            <span className="mesa-card__chip">
+              <IconoBolsa tamano={14} />
+              {totalProductos} {totalProductos === 1 ? "producto" : "productos"}
+            </span>
+            {tiempo && (
+              <span className="mesa-card__chip mesa-card__chip--tiempo">
+                <IconoReloj tamano={14} />
+                {tiempo}
+              </span>
+            )}
+          </div>
         </div>
       )}
 
+      {/* ===================================================
+          ACCIONES
+      =================================================== */}
+
       {libre ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <div className="mesa-card__acciones">
           <button
             onClick={() => onAbrir(mesa.id)}
             aria-label={`Abrir mesa ${mesa.numero}`}
-            className="mesa-btn"
-            style={{
-              width: "100%",
-              background: "#16a34a",
-              color: "white",
-              border: "none",
-              padding: "12px",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontWeight: 700,
-            }}
+            className="mesa-btn mesa-accion mesa-accion--abrir"
           >
             Abrir mesa
+            <IconoFlecha tamano={18} />
           </button>
 
           {/* ===================================================
@@ -172,67 +162,34 @@ export default function MesaCard({
               onClick={() => onSolicitarEliminar(mesa)}
               disabled={eliminando}
               aria-label={`Eliminar Mesa ${mesa.numero}`}
-              className="mesa-btn"
-              style={{
-                width: "100%",
-                minHeight: "44px",
-                background: "transparent",
-                color: "#ef4444",
-                border: "1px solid #fecaca",
-                padding: "10px",
-                borderRadius: "8px",
-                cursor: eliminando ? "default" : "pointer",
-                opacity: eliminando ? 0.6 : 1,
-                fontWeight: 700,
-              }}
+              className="mesa-btn mesa-accion mesa-accion--eliminar"
             >
-              {eliminando ? "Eliminando..." : "🗑️ Eliminar"}
+              {!eliminando && <IconoBasura tamano={15} />}
+              {eliminando ? "Eliminando..." : "Eliminar"}
             </button>
           )}
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <div className="mesa-card__acciones mesa-card__acciones--doble">
           <button
             onClick={() => onGestionar(mesa.id)}
             aria-label={`Gestionar mesa ${mesa.numero}`}
-            className="mesa-btn"
-            style={{
-              width: "100%",
-              background: "#2563eb",
-              color: "white",
-              border: "none",
-              padding: "12px",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontWeight: 700,
-            }}
+            className="mesa-btn mesa-accion mesa-accion--gestionar"
           >
+            <IconoGestionar tamano={17} />
             Gestionar mesa
           </button>
 
           <button
-  onClick={() => onSolicitarCierre(mesa)}
-  aria-label={`Cerrar cuenta de la mesa ${mesa.numero}`}
-  className="mesa-btn"
-  style={{
-    width: "100%",
-    background: "#ef4444",
-    color: "white",
-    border: "none",
-    padding: "12px",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontWeight: 700,
-  }}
->
-  Cerrar cuenta
-</button>
+            onClick={() => onSolicitarCierre(mesa)}
+            aria-label={`Cerrar cuenta de la mesa ${mesa.numero}`}
+            className="mesa-btn mesa-accion mesa-accion--cerrar"
+          >
+            <IconoTarjeta tamano={17} />
+            Cerrar cuenta
+          </button>
         </div>
       )}
     </article>
   );
 }
-
-
-
-
